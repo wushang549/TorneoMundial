@@ -1,5 +1,5 @@
 {
   "dependencies" : [
-    "crow", "hypodermic", "libpqxx", "gtest"
+    "crow", "hypodermic", "libpqxx", "gtest", "nlohmann-json"
   ]
 }

@@ -9,6 +9,7 @@ enable_testing()
 find_package(Crow CONFIG REQUIRED)
 find_package(libpqxx CONFIG REQUIRED)
 find_path(HYPODERMIC_INCLUDE_DIRS "Hypodermic/ActivatedRegistrationInfo.h")
+find_package(nlohmann_json CONFIG REQUIRED)
 
 include_directories(include)
 
@@ -20,6 +21,5 @@ add_executable(${PROJECT_NAME}
         src/persistence/repository/TeamRepository.cpp
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE Crow::Crow asio::asio)
+target_link_libraries(${PROJECT_NAME} PRIVATE Crow::Crow asio::asio nlohmann_json::nlohmann_json libpqxx::pqxx)
 target_include_directories(${PROJECT_NAME} PRIVATE ${HYPODERMIC_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME} PRIVATE libpqxx::pqxx)

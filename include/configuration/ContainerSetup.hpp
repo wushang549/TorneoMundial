@@ -6,11 +6,11 @@
 #define RESTAPI_CONTAINER_SETUP_HPP
 #include <Hypodermic/ContainerBuilder.h>
 
-#include "controller/TestController.hpp"
+#include "controller/TeamController.hpp"
 
 std::shared_ptr<Hypodermic::Container> containerSetup() {
     Hypodermic::ContainerBuilder builder;
-    builder.registerType<TestController>().singleInstance();
+    builder.registerType<TeamController>().singleInstance();
     return builder.build();
 }
 #endif //RESTAPI_CONTAINER_SETUP_HPP

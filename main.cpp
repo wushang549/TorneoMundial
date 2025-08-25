@@ -12,5 +12,7 @@ int main() {
         def.binder(app, container);
     }
 
-    app.port(8080).multithreaded().run();
+    app.port(8080)
+        // .multithreaded()
+        .concurrency(3).run();
 }
