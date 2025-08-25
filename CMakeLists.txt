@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.10.0)
 project(Tournaments)
 
 set(CMAKE_CXX_STANDARD 23)
-set(SOURCES ${SOURCES})
+set(SOURCES 
+        src/delegate/TeamDelegate.cpp
+        src/persistence/repository/TeamRepository.cpp)
 
 include(CTest)
 enable_testing()

@@ -1,5 +1,9 @@
 project(tournament_tests)
 
+set(TEST_SOURCES 
+    TeamControllerTest.cpp
+    TournamentControllerTest.cpp)
+
 set(SOURCES ${SOURCES} ${TEST_SOURCES})
 
 find_package(GTest CONFIG REQUIRED)
@@ -7,8 +11,6 @@ find_package(GTest CONFIG REQUIRED)
 include_directories(include)
 
 add_executable(${PROJECT_NAME}_runner
-    TeamControllerTest.cpp
-    TournamentControllerTest.cpp
     ${TEST_SOURCES}
 )
 
