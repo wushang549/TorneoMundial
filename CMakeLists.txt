@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.10.0)
 project(Tournaments)
 
 set(CMAKE_CXX_STANDARD 23)
+set(SOURCES ${SOURCES})
 
 include(CTest)
 enable_testing()
@@ -15,10 +16,10 @@ include_directories(include)
 
 add_subdirectory(tests)
 
+
 add_executable(${PROJECT_NAME}
         main.cpp
-        src/delegate/TeamDelegate.cpp
-        src/persistence/repository/TeamRepository.cpp
+        ${SOURCES}
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Crow::Crow asio::asio nlohmann_json::nlohmann_json libpqxx::pqxx)
