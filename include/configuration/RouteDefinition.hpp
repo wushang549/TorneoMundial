@@ -61,9 +61,4 @@ struct Controller## _##Method##_RouteRegistrator { \
 }; \
 static Controller##_##Method##_RouteRegistrator global_##Controller##_##Method##_registrator;
 
-// Convenience macros for GET, POST, etc.
-// #define CROW_GET(Controller, Method, Path)  CROW_ROUTE_ANNOTATION(Controller, Method, Path, "GET"_method)
-// #define CROW_POST(Controller, Method, Path) CROW_ROUTE_ANNOTATION(Controller, Method, Path, "POST"_method)
-
-
 #endif //RESTAPI_ROUTE_DEFINITION_HPP

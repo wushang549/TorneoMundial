@@ -2,6 +2,7 @@
 
 
 #include "configuration/ContainerSetup.hpp"
+#include "configuration/ApplicationProperties.hpp"
 
 int main() {
     const auto container = containerSetup();
@@ -12,7 +13,9 @@ int main() {
         def.binder(app, container);
     }
 
-    app.port(8080)
-        // .multithreaded()
-        .concurrency(3).run();
+    auto appConfig = container->resolve<ApplicationProperties>();
+
+    app.port(appConfig->Port())
+        .concurrency(appConfig->Concurrency())
+        .run();
 }
