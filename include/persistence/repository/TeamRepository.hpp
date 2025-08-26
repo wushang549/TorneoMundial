@@ -5,20 +5,37 @@
 #ifndef RESTAPI_TEAMREPOSITORY_HPP
 #define RESTAPI_TEAMREPOSITORY_HPP
 #include <string>
+#include <memory>
 
 #include "IRepository.hpp"
 #include "domain/Team.hpp"
 
+// template <typename T, typename Id>
 class TeamRepository : public IRepository<domain::Team, std::string> {
 public:
 
-    std::shared_ptr<domain::Team> ReadById( std::string id) override;
+    std::vector<std::shared_ptr<domain::Team>> ReadAll() {
+        std::vector<std::shared_ptr<domain::Team>> teams;
+        teams.push_back(std::make_shared<domain::Team>(domain::Team{"ID", "NAME"}));
+        
+        teams.push_back(std::make_shared<domain::Team>(domain::Team{"USA", "United States"}));
+        teams.push_back(std::make_shared<domain::Team>(domain::Team{"CA", "Canada"}));
+        teams.push_back(std::make_shared<domain::Team>(domain::Team{"MX", "Mexico"}));
 
-    std::string Save(const domain::Team &entity) override;
+        return teams;
+    }
 
-    void Delete(std::string id) override;
+    std::shared_ptr<domain::Team> ReadById(std::string id) {
+        return std::make_shared<domain::Team>();
+    }
 
-    std::vector<std::shared_ptr<domain::Team>> ReadAll() override;
+    std::string Save(const domain::Team &entity) {
+        return "newID";
+    }
+
+    void Delete(std::string id) {
+        
+    }
 };
 
 

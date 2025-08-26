@@ -5,7 +5,7 @@
 #include "configuration/RunConfiguration.hpp"
 
 int main() {
-    const auto container = containerSetup();
+    const auto container = config::containerSetup();
     crow::SimpleApp app;
 
     // Bind all annotated routes

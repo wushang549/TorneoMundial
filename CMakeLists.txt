@@ -3,8 +3,7 @@ project(Tournaments)
 
 set(CMAKE_CXX_STANDARD 23)
 set(SOURCES 
-        src/delegate/TeamDelegate.cpp
-        src/persistence/repository/TeamRepository.cpp)
+        src/delegate/TeamDelegate.cpp)
 
 include(CTest)
 enable_testing()
