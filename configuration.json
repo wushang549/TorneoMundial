@@ -1,0 +1,9 @@
+{
+    "application" : {
+        "port" : 8000,
+        "concurrency" : 4
+    },
+    "database" : {
+        "connectionString" : ""
+    }
+}
