@@ -2,7 +2,7 @@
 
 
 #include "configuration/ContainerSetup.hpp"
-#include "configuration/ApplicationProperties.hpp"
+#include "configuration/RunConfiguration.hpp"
 
 int main() {
     const auto container = containerSetup();
@@ -13,9 +13,9 @@ int main() {
         def.binder(app, container);
     }
 
-    auto appConfig = container->resolve<ApplicationProperties>();
+    auto appConfig = container->resolve<config::RunConfiguration>();
 
-    app.port(appConfig->Port())
-        .concurrency(appConfig->Concurrency())
+    app.port(appConfig->port)
+        .concurrency(appConfig->concurrency)
         .run();
 }

@@ -8,13 +8,13 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <memory>
-#include <print>
 
-#include "ApplicationProperties.hpp"
+#include "DatabaseConfiguration.hpp"
+#include "RunConfiguration.hpp"
 #include "controller/TeamController.hpp"
 
 
-std::shared_ptr<Hypodermic::Container> containerSetup() {
+inline std::shared_ptr<Hypodermic::Container> containerSetup() {
     Hypodermic::ContainerBuilder builder;
     builder.registerType<TeamController>().singleInstance();
 
@@ -22,12 +22,11 @@ std::shared_ptr<Hypodermic::Container> containerSetup() {
     if(file.is_open()) {
         nlohmann::json jsonData;
         file >> jsonData;
+        std::shared_ptr<config::RunConfiguration> appConfig = std::make_shared<config::RunConfiguration>(jsonData["runConfig"]);
+        builder.registerInstance(appConfig);
 
-        std::shared_ptr<ApplicationProperties> applicationProperties = std::make_shared<ApplicationProperties>(
-              jsonData["application"].at("port").get<int>()
-            , jsonData["application"].at("concurrency").get<int>()
-        );
-        builder.registerInstance(applicationProperties);
+        std::shared_ptr<config::DatabaseConfiguration> dbConfig = std::make_shared<config::DatabaseConfiguration>(jsonData["databaseConfig"]);
+        builder.registerInstance(dbConfig);
     }
 
     return builder.build();

@@ -4,7 +4,7 @@
 
 #include "persistence/repository/TeamRepository.hpp"
 
-std::vector<persistence::Team> TeamRepository::ReadAll() {
-    return std::vector<persistence::Team>();
+std::vector<std::shared_ptr<domain::Team>> TeamRepository::ReadAll() {
+    return std::vector<std::shared_ptr<domain::Team>>();
 }
 

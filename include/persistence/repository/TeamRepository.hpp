@@ -7,18 +7,18 @@
 #include <string>
 
 #include "IRepository.hpp"
-#include "persistence/model/Team.hpp"
+#include "domain/Team.hpp"
 
-class TeamRepository : public IRepository<persistence::Team, std::string> {
+class TeamRepository : public IRepository<domain::Team, std::string> {
 public:
 
-    persistence::Team ReadById( std::string id) override;
+    std::shared_ptr<domain::Team> ReadById( std::string id) override;
 
-    std::string Save(persistence::Team entity) override;
+    std::string Save(const domain::Team &entity) override;
 
     void Delete(std::string id) override;
 
-    std::vector<persistence::Team> ReadAll() override;
+    std::vector<std::shared_ptr<domain::Team>> ReadAll() override;
 };
 
 
