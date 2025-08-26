@@ -10,13 +10,16 @@
 #include <memory>
 
 #include "DatabaseConfiguration.hpp"
+#include "persistence/reposiotry/IRepository.hpp"
+#include "persistence/reposiotry/TeamRepository.hpp"
 #include "RunConfiguration.hpp"
+#include "delegate/TeamDelegate.hpp"
 #include "controller/TeamController.hpp"
+
 
 
 inline std::shared_ptr<Hypodermic::Container> containerSetup() {
     Hypodermic::ContainerBuilder builder;
-    builder.registerType<TeamController>().singleInstance();
 
     std::ifstream file("configuration.json");
     if(file.is_open()) {
@@ -28,6 +31,10 @@ inline std::shared_ptr<Hypodermic::Container> containerSetup() {
         std::shared_ptr<config::DatabaseConfiguration> dbConfig = std::make_shared<config::DatabaseConfiguration>(jsonData["databaseConfig"]);
         builder.registerInstance(dbConfig);
     }
+
+    builder.registerType<TeamRepositroy>.as<IRepository>().singleInstance();
+    builder.registerType<TeamDelegate>().singleInstance();
+    builder.registerType<TeamController>().singleInstance();
 
     return builder.build();
 }

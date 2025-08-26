@@ -8,6 +8,7 @@
 #include <string>
 #include <crow.h>
 #include <nlohmann/json.hpp>
+#include <memory>
 
 #include "configuration/RouteDefinition.hpp"
 #include "delegate/TeamDelegate.hpp"
@@ -16,6 +17,10 @@
 namespace domain {
     inline void to_json(nlohmann::json& json, const Team& team) {
         json = {{"id", team.Id}, {"name", team.Name}};
+    }
+
+    inline void to_json(nlohmann::json& json, std::shared_ptr<Team> team) {
+        json = {{"id", team->Id}, {"name", team->Name}};
     }
 }
 class TeamController {
