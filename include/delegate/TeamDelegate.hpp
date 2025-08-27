@@ -8,13 +8,14 @@
 
 #include "persistence/repository/IRepository.hpp"
 #include "domain/Team.hpp"
+#include "ITeamDelegate.hpp"
 
-class TeamDelegate {
+class TeamDelegate : public ITeamDelegate {
     std::shared_ptr<IRepository<domain::Team, std::string>> teamRepository;
     public:
     TeamDelegate(std::shared_ptr<IRepository<domain::Team, std::string>> repository);
-    std::shared_ptr<domain::Team> getTeam(std::string_view id);
-    std::vector<std::shared_ptr<domain::Team>> getAllTeams();
+    std::shared_ptr<domain::Team> getTeam(std::string_view id) override;
+    std::vector<std::shared_ptr<domain::Team>> getAllTeams() override;
 };
 
 

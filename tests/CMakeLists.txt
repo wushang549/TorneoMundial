@@ -1,8 +1,8 @@
 project(tournament_tests)
 
 set(TEST_SOURCES 
-    TeamControllerTest.cpp
-    TournamentControllerTest.cpp)
+    controller/TeamControllerTest.cpp
+    controller/TournamentControllerTest.cpp)
 
 set(SOURCES ${SOURCES} ${TEST_SOURCES})
 

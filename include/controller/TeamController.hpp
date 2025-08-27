@@ -9,9 +9,10 @@
 #include <crow.h>
 #include <nlohmann/json.hpp>
 #include <memory>
+#include <regex>
 
 #include "configuration/RouteDefinition.hpp"
-#include "delegate/TeamDelegate.hpp"
+#include "delegate/ITeamDelegate.hpp"
 #include "domain/Team.hpp"
 
 namespace domain {
@@ -23,21 +24,26 @@ namespace domain {
         json = {{"id", team->Id}, {"name", team->Name}};
     }
 }
+
+static const std::regex ID_VALUE("[A-Za-z0-9\\-]+");
+
 class TeamController {
-    std::shared_ptr<TeamDelegate> teamDelegate;
+    std::shared_ptr<ITeamDelegate> teamDelegate;
 public:
-    TeamController(std::shared_ptr<TeamDelegate> teamDelegate) : teamDelegate(teamDelegate) {}
+    TeamController(std::shared_ptr<ITeamDelegate> teamDelegate) : teamDelegate(teamDelegate) {}
 
-    crow::response getTest(const std::string testId) {
-        domain::Team team;
-        team.Id = testId;
+    crow::response getTeam(const std::string teamId) {
+        if(!std::regex_match(teamId, ID_VALUE)) {
+            return crow::response{crow::BAD_REQUEST, "Invalid ID format"};
+        }
 
-        nlohmann::json body;
-        body["name"] = team.Name;
-        body["id"] = team.Id;
+        auto team = teamDelegate->getTeam(teamId);
 
-
-        return crow::response{200, body.dump()};
+        if(team != nullptr) {
+            nlohmann::json body = team;
+            return crow::response{crow::OK, body.dump()};
+        }
+        return crow::response{crow::NOT_FOUND, "team not found"};
     }
 
     crow::response getAllTeams() {
@@ -53,7 +59,7 @@ public:
 };
 
 
-REGISTER_ROUTE(TeamController, getTest, "/teams/<string>", "GET"_method)
+REGISTER_ROUTE(TeamController, getTeam, "/teams/<string>", "GET"_method)
 REGISTER_ROUTE(TeamController, getAllTeams, "/teams", "GET"_method)
 REGISTER_ROUTE(TeamController, saveTests, "/teams", "POST"_method)
 #endif //RESTAPI_TEAM_CONTROLLER_HPP
