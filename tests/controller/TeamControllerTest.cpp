@@ -8,8 +8,9 @@
 
 class TeamDelegateMock : public ITeamDelegate {
     public:
-    MOCK_METHOD(std::shared_ptr<domain::Team>, getTeam, (const std::string_view id), (override));
-    MOCK_METHOD(std::vector<std::shared_ptr<domain::Team>>, getAllTeams, (), (override));
+    MOCK_METHOD(std::shared_ptr<domain::Team>, GetTeam, (const std::string_view id), (override));
+    MOCK_METHOD(std::vector<std::shared_ptr<domain::Team>>, GetAllTeams, (), (override));
+    MOCK_METHOD(std::string, SaveTeam, (const domain::Team&), (override));
 };
 
 class TeamControllerTest : public ::testing::Test{
@@ -42,19 +43,19 @@ TEST_F(TeamControllerTest, GetTeamById) {
 
     std::shared_ptr<domain::Team> expectedTeam = std::make_shared<domain::Team>(domain::Team{"my-id",  "Team Name"});
 
-    EXPECT_CALL(*teamDelegateMock, getTeam(testing::Eq(std::string("my-id"))))
+    EXPECT_CALL(*teamDelegateMock, GetTeam(testing::Eq(std::string("my-id"))))
         .WillOnce(testing::Return(expectedTeam));
 
     crow::response response = teamController->getTeam("my-id");
-    auto jsonResonse = crow::json::load(response.body);
+    auto jsonResponse = crow::json::load(response.body);
 
     EXPECT_EQ(crow::OK, response.code);
-    EXPECT_EQ(expectedTeam->Id, jsonResonse["id"]);
-    EXPECT_EQ(expectedTeam->Name, jsonResonse["name"]);
+    EXPECT_EQ(expectedTeam->Id, jsonResponse["id"]);
+    EXPECT_EQ(expectedTeam->Name, jsonResponse["name"]);
 }
 
 TEST_F(TeamControllerTest, GetTeamNotFound) {
-    EXPECT_CALL(*teamDelegateMock, getTeam(testing::Eq(std::string("my-id"))))
+    EXPECT_CALL(*teamDelegateMock, GetTeam(testing::Eq(std::string("my-id"))))
         .WillOnce(testing::Return(nullptr));
 
     crow::response response = teamController->getTeam("my-id");

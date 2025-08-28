@@ -7,12 +7,16 @@
 TeamDelegate::TeamDelegate(std::shared_ptr<IRepository<domain::Team, std::string> > repository) : teamRepository(repository) {
 }
 
-std::vector<std::shared_ptr<domain::Team>> TeamDelegate::getAllTeams() {
+std::vector<std::shared_ptr<domain::Team>> TeamDelegate::GetAllTeams() {
     return teamRepository->ReadAll();
 }
 
-std::shared_ptr<domain::Team> TeamDelegate::getTeam(std::string_view id) {
+std::shared_ptr<domain::Team> TeamDelegate::GetTeam(std::string_view id) {
     return nullptr;
+}
+
+std::string TeamDelegate::SaveTeam(const domain::Team& team){
+    return "newKey";
 }
 
 

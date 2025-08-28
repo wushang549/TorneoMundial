@@ -20,6 +20,11 @@ namespace domain {
         json = {{"id", team.Id}, {"name", team.Name}};
     }
 
+    inline void from_json(const nlohmann::json& json, Team& team) {
+        json.at("id").get_to(team.Id);
+        json.at("name").get_to(team.Name);
+    }
+
     inline void to_json(nlohmann::json& json, std::shared_ptr<Team> team) {
         json = {{"id", team->Id}, {"name", team->Name}};
     }
@@ -37,7 +42,7 @@ public:
             return crow::response{crow::BAD_REQUEST, "Invalid ID format"};
         }
 
-        auto team = teamDelegate->getTeam(teamId);
+        auto team = teamDelegate->GetTeam(teamId);
 
         if(team != nullptr) {
             nlohmann::json body = team;
@@ -48,18 +53,29 @@ public:
 
     crow::response getAllTeams() {
 
-        nlohmann::json body = teamDelegate->getAllTeams();
+        nlohmann::json body = teamDelegate->GetAllTeams();
         return crow::response{200, body.dump()};
     }
 
-    std::string saveTests(const crow::request& request) {
+    crow::response SaveTeam(const crow::request& request) {
+        crow::response response;
+        
+        if(nlohmann::json::accept(request.body)) {
+            response.code = crow::BAD_REQUEST;
+            return response;
+        }
+        auto requestBody = nlohmann::json::parse(request.body);
+        domain::Team team = requestBody;
 
-        return "trying to save a team";
+        teamDelegate->SaveTeam(team);
+        response.code = crow::CREATED;
+
+        return response;
     }
 };
 
 
 REGISTER_ROUTE(TeamController, getTeam, "/teams/<string>", "GET"_method)
 REGISTER_ROUTE(TeamController, getAllTeams, "/teams", "GET"_method)
-REGISTER_ROUTE(TeamController, saveTests, "/teams", "POST"_method)
+REGISTER_ROUTE(TeamController, SaveTeam, "/teams", "POST"_method)
 #endif //RESTAPI_TEAM_CONTROLLER_HPP
