@@ -4,6 +4,7 @@
         "concurrency" : 4
     },
     "databaseConfig" : {
+        "provider" : "",
         "connectionString" : ""
     }
 }

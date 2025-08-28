@@ -62,3 +62,25 @@ TEST_F(TeamControllerTest, GetTeamNotFound) {
 
     EXPECT_EQ(crow::NOT_FOUND, response.code);
 }
+
+TEST_F(TeamControllerTest, SaveTeamTest) {
+    domain::Team capturedTeam;
+    EXPECT_CALL(*teamDelegateMock, SaveTeam(::testing::_))
+        .WillOnce(testing::DoAll(
+                testing::SaveArg<0>(&capturedTeam),
+                testing::Return("new-id")
+            )
+        );
+
+    nlohmann::json teamRequestBody = {{"id", "new-id"}, {"name", "new team"}};
+    crow::request teamRequest;
+    teamRequest.body = teamRequestBody.dump();
+
+    crow::response response = teamController->SaveTeam(teamRequest);
+
+    testing::Mock::VerifyAndClearExpectations(&teamDelegateMock);
+
+    EXPECT_EQ(crow::CREATED, response.code);
+    EXPECT_EQ(teamRequestBody.at("id").get<std::string>(), capturedTeam.Id);
+    EXPECT_EQ(teamRequestBody.at("name").get<std::string>(), capturedTeam.Name);
+}

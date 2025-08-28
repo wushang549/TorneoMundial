@@ -60,7 +60,7 @@ public:
     crow::response SaveTeam(const crow::request& request) {
         crow::response response;
         
-        if(nlohmann::json::accept(request.body)) {
+        if(!nlohmann::json::accept(request.body)) {
             response.code = crow::BAD_REQUEST;
             return response;
         }
