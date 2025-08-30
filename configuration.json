@@ -4,7 +4,8 @@
         "concurrency" : 4
     },
     "databaseConfig" : {
-        "provider" : "",
-        "connectionString" : ""
+        "provider" : "postgres",
+        "poolSize": "2",
+        "connectionString" : "postgresql://tournament_svc:password@localhost:5432/tournament_db"
     }
 }
