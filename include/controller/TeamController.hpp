@@ -14,21 +14,7 @@
 #include "configuration/RouteDefinition.hpp"
 #include "delegate/ITeamDelegate.hpp"
 #include "domain/Team.hpp"
-
-namespace domain {
-    inline void to_json(nlohmann::json& json, const Team& team) {
-        json = {{"id", team.Id}, {"name", team.Name}};
-    }
-
-    inline void from_json(const nlohmann::json& json, Team& team) {
-        json.at("id").get_to(team.Id);
-        json.at("name").get_to(team.Name);
-    }
-
-    inline void to_json(nlohmann::json& json, std::shared_ptr<Team> team) {
-        json = {{"id", team->Id}, {"name", team->Name}};
-    }
-}
+#include "domain/Utilities.hpp"
 
 static const std::regex ID_VALUE("[A-Za-z0-9\\-]+");
 
@@ -67,8 +53,9 @@ public:
         auto requestBody = nlohmann::json::parse(request.body);
         domain::Team team = requestBody;
 
-        teamDelegate->SaveTeam(team);
+        auto createdId = teamDelegate->SaveTeam(team);
         response.code = crow::CREATED;
+        response.add_header("location", createdId.data());
 
         return response;
     }

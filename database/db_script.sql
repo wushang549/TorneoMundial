@@ -7,7 +7,7 @@ grant all privileges on database tournament_db to tournament_admin;
 grant all privileges on database tournament_db to tournament_svc;
 grant usage on schema public to tournament_admin;
 grant usage on schema public to tournament_svc;
-
+git 
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO tournament_admin;
 GRANT DELETE ON ALL TABLES IN SCHEMA public TO tournament_admin;
 GRANT UPDATE ON ALL TABLES IN SCHEMA public TO tournament_admin;

@@ -12,7 +12,8 @@ class IRepository {
 public:
     virtual ~IRepository() = default;
     virtual std::shared_ptr<Type> ReadById(Id id) = 0;
-    virtual Id Save (const Type & entity) = 0;
+    virtual Id Create (const Type & entity) = 0;
+    virtual Id Update (const Type & entity) = 0;
     virtual void Delete(Id id) = 0;
     virtual std::vector<std::shared_ptr<Type>> ReadAll() = 0;
 };

@@ -6,6 +6,7 @@ CREATE TABLE TEAMS (
     document JSONB NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+CREATE UNIQUE INDEX team_unique_name_idx ON teams ((document->>'name'));
 
 CREATE TABLE GROUPS (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,

@@ -4,7 +4,7 @@
 
 #include "delegate/TeamDelegate.hpp"
 
-TeamDelegate::TeamDelegate(std::shared_ptr<IRepository<domain::Team, std::string> > repository) : teamRepository(repository) {
+TeamDelegate::TeamDelegate(std::shared_ptr<IRepository<domain::Team, std::string_view> > repository) : teamRepository(repository) {
 }
 
 std::vector<std::shared_ptr<domain::Team>> TeamDelegate::GetAllTeams() {
@@ -12,11 +12,12 @@ std::vector<std::shared_ptr<domain::Team>> TeamDelegate::GetAllTeams() {
 }
 
 std::shared_ptr<domain::Team> TeamDelegate::GetTeam(std::string_view id) {
-    return nullptr;
+    return teamRepository->ReadById(id.data());
 }
 
-std::string TeamDelegate::SaveTeam(const domain::Team& team){
-    return "newKey";
+std::string_view TeamDelegate::SaveTeam(const domain::Team& team){
+
+    return teamRepository->Create(team);
 }
 
 

@@ -2,8 +2,8 @@
 // Created by tomas on 8/29/25.
 //
 
-#ifndef TOURNAMENTS_POSTGRESCONNECTIONPROVIDER_HPP
-#define TOURNAMENTS_POSTGRESCONNECTIONPROVIDER_HPP
+#ifndef TOURNAMENTS_POSTGRES_CONNECTION_HPP
+#define TOURNAMENTS_POSTGRES_CONNECTION_HPP
 #include <memory>
 #include <pqxx/pqxx>
 #include "IDbConnectionProvider.hpp"

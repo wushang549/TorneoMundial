@@ -15,6 +15,7 @@
 #include "RunConfiguration.hpp"
 #include "delegate/TeamDelegate.hpp"
 #include "controller/TeamController.hpp"
+#include "persistence/configuration/PostgresConnectionProvider.hpp"
 
 namespace config {
     std::shared_ptr<Hypodermic::Container> containerSetup(){
@@ -22,18 +23,18 @@ namespace config {
 
         std::ifstream file("configuration.json");
         if(file.is_open()) {
-            nlohmann::json jsonData;
-            file >> jsonData;
-            std::shared_ptr<config::RunConfiguration> appConfig = std::make_shared<config::RunConfiguration>(jsonData["runConfig"]);
+            nlohmann::json configuration;
+            file >> configuration;
+            std::shared_ptr<config::RunConfiguration> appConfig = std::make_shared<config::RunConfiguration>(configuration["runConfig"]);
             builder.registerInstance(appConfig);
-
-            std::shared_ptr<config::DatabaseConfiguration> dbConfig = std::make_shared<config::DatabaseConfiguration>(jsonData["databaseConfig"]);
-            builder.registerInstance(dbConfig);
+          
+            std::shared_ptr<PostgresConnectionProvider> postgressConnection = std::make_shared<PostgresConnectionProvider>(configuration["databaseConfig"]["connectionString"].get<std::string>(), configuration["databaseConfig"]["poolSize"].get<size_t>());
+            builder.registerInstance(postgressConnection).as<IDbConnectionProvider>();
         }
 
-        builder.registerType<TeamRepository>().as<IRepository<domain::Team, std::string>>();
+        builder.registerType<TeamRepository>().as<IRepository<domain::Team, std::string_view>>();
 
-        builder.registerType<TeamDelegate>().singleInstance();
+        builder.registerType<TeamDelegate>().as<ITeamDelegate>().singleInstance();
         builder.registerType<TeamController>().singleInstance();
 
         return builder.build();

@@ -9,6 +9,7 @@
 #include <pqxx/pqxx>
 
 #include "IDbConnectionProvider.hpp"
+#include "PostgresConnection.hpp"
 
 class PostgresConnectionProvider : public IDbConnectionProvider{
     std::string_view connectionString;
@@ -18,24 +19,40 @@ class PostgresConnectionProvider : public IDbConnectionProvider{
     std::condition_variable connectionPoolCondition;
 
 public:
-    PostgresConnectionProvider(std::string_view connectionString, size_t poolSize) : connectionString(connectionString), poolSize(poolSize) {}
+    PostgresConnectionProvider(std::string_view connectionString, size_t poolSize) : connectionString(connectionString), poolSize(poolSize) {
+        for (size_t i = 0; i < poolSize; i++) {
+            connectionPool.push(std::make_unique<pqxx::connection>(connectionString.data()));
+        }
+    }
 
-    std::unique_ptr<IDbConnection> Connection() override {
+    PooledConnection Connection() override {
         std::unique_lock<std::mutex> lock(connectionPoolMutex);
+
+        // wait until a connection is available
         connectionPoolCondition.wait(lock, [this] { return !connectionPool.empty(); });
 
-        auto connection = std::move(connectionPool.front());
+        // take one out
+        auto conn = std::move(connectionPool.front());
         connectionPool.pop();
 
-        return std::unique_ptr<IDbConnection>(
-            new PostgresConnection(std::unique_ptr<pqxx::connection>(connection.release())),
+        // build PostgresConnection wrapper (adapts pqxx::connection -> IDbConnection)
+        auto dbc = new PostgresConnection(std::move(conn));
+
+        // return a RAII PooledConnection
+        return PooledConnection(
+            dbc,
             [this](IDbConnection* dbc) {
                 auto pc = dynamic_cast<PostgresConnection*>(dbc);
-                std::lock_guard<std::mutex> lock(connectionPoolMutex);
-                connectionPool.push(std::move(pc->conn));
+
+                {
+                    std::lock_guard<std::mutex> lock(connectionPoolMutex);
+                    connectionPool.push(std::move(pc->connection));
+                }
+
                 delete pc;
                 connectionPoolCondition.notify_one();
-            });
+            }
+        );
     }
 };
 #endif //TOURNAMENTS_POSTGRESCONNECTIONPROVIDER_HPP
