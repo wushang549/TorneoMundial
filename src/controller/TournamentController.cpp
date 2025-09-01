@@ -11,8 +11,7 @@
 
 TournamentController::TournamentController(std::shared_ptr<ITournamentDelegate> tournamentDelegate) : tournamentDelegate(std::move(tournamentDelegate)) {}
 
-crow::response TournamentController::CreateTournament(const crow::request &request) {
-
+crow::response TournamentController::CreateTournament(const crow::request &request) const {
     nlohmann::json body = nlohmann::json::parse(request.body);
     domain::Tournament tournament = body;
 

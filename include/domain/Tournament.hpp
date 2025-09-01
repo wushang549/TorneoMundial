@@ -56,12 +56,12 @@ namespace domain {
         std::vector<Match> matches;
 
     public:
-        Tournament(const std::string &name = "", TournamentFormat format = TournamentFormat()) {
+        explicit Tournament(const std::string &name = "", TournamentFormat format = TournamentFormat()) {
             this->name = name;
             this->format = format;
         }
 
-        std::string Id() const {
+        [[nodiscard]] std::string Id() const {
             return this->id;
         }
 
@@ -69,7 +69,7 @@ namespace domain {
             return this->id;
         }
 
-        std::string Name() const {
+        [[nodiscard]] std::string Name() const {
             return this->name;
         }
 
@@ -77,12 +77,20 @@ namespace domain {
             return this->name;
         }
 
-        TournamentFormat Format() const {
+        [[nodiscard]] TournamentFormat Format() const {
             return this->format;
         }
 
         TournamentFormat & Format () {
             return this->format;
+        }
+
+        [[nodiscard]] std::vector<Group> & Groups() {
+            return this->groups;
+        }
+
+        [[nodiscard]] std::vector<Match> Matches() const {
+            return this->matches;
         }
     };
 }

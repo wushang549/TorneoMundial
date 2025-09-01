@@ -55,8 +55,9 @@ namespace domain {
         if(json.contains("id")) {
             tournament.Id() = json["id"].get<std::string>();
         }
-        tournament.Name() = json["name"].get<std::string>();
-        json.at("format").get_to(tournament.Format());
+        json["name"].get_to(tournament.Name());
+        if (json.contains("format"))
+            json.at("format").get_to(tournament.Format());
     }
 }
 
