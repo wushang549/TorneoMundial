@@ -3,22 +3,12 @@
 namespace domain {
     class Group
     {
-        private:
-            /* data */
-        public:
-            Group(/* args */);
-            ~Group();
+    private:
+        /* data */
+    public:
+        Group(/* args */) {
+        }
     };
-
-    Group::Group(/* args */)
-{
 }
-
-Group::~Group()
-{
-}
-}
-
-
 
 #endif

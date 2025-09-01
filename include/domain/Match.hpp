@@ -7,17 +7,8 @@ namespace domain {
     private:
         /* data */
     public:
-        Match(/* args */);
-        ~Match();
+        Match(/* args */){}
     };
-    
-    Match::Match(/* args */)
-    {
-    }
-    
-    Match::~Match()
-    {
-    }
     
 }
 #endif

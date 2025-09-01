@@ -3,8 +3,12 @@
 
 #include <nlohmann/json.hpp>
 #include "domain/Team.hpp"
+#include "domain/Tournament.hpp"
+#include "domain/Group.hpp"
+#include "domain/Match.hpp"
 
 namespace domain {
+
     inline void to_json(nlohmann::json& json, const Team& team) {
         json = {{"id", team.Id}, {"name", team.Name}};
     }
@@ -23,6 +27,36 @@ namespace domain {
         if (!team->Id.empty()) {
             json["id"] = team->Id;
         }
+    }
+
+    inline TournamentType fromString(std::string_view type) {
+        if (type == "ROUND_ROBIN")
+            return TournamentType::ROUND_ROBIN;
+        if (type == "NFL")
+            return TournamentType::NFL;
+
+        return TournamentType::ROUND_ROBIN;
+    }
+
+    inline void from_json(const nlohmann::json& json, TournamentFormat& format) {
+        if(json.contains("maxTeamsPerGroup"))
+            json.at("maxTeamsPerGroup").get_to(format.MaxTeamsPerGroup());
+        if(json.contains("numberOfGroups"))
+            json.at("numberOfGroups").get_to(format.NumberOfGroups());
+        if(json.contains("type"))
+            format.Type() = fromString(json["type"].get<std::string>());
+    }
+
+    inline void to_json(nlohmann::json& json, const Tournament& tournament) {
+        json = {{"id", tournament.Id()}, {"name", tournament.Name()}};
+    }
+
+    inline void from_json(const nlohmann::json& json, Tournament& tournament) {
+        if(json.contains("id")) {
+            tournament.Id() = json["id"].get<std::string>();
+        }
+        tournament.Name() = json["name"].get<std::string>();
+        json.at("format").get_to(tournament.Format());
     }
 }
 

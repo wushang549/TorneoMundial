@@ -15,10 +15,12 @@
 #include "RunConfiguration.hpp"
 #include "delegate/TeamDelegate.hpp"
 #include "controller/TeamController.hpp"
+#include "controller/TournamentController.hpp"
+#include "delegate/TournamentDelegate.hpp"
 #include "persistence/configuration/PostgresConnectionProvider.hpp"
 
 namespace config {
-    std::shared_ptr<Hypodermic::Container> containerSetup(){
+    inline std::shared_ptr<Hypodermic::Container> containerSetup(){
                 Hypodermic::ContainerBuilder builder;
 
         std::ifstream file("configuration.json");
@@ -36,6 +38,9 @@ namespace config {
 
         builder.registerType<TeamDelegate>().as<ITeamDelegate>().singleInstance();
         builder.registerType<TeamController>().singleInstance();
+
+        builder.registerType<TournamentDelegate>().as<ITournamentDelegate>().singleInstance();
+        builder.registerType<TournamentController>().singleInstance();
 
         return builder.build();
     }
