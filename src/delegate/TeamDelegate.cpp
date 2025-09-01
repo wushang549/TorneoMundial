@@ -4,7 +4,9 @@
 
 #include "delegate/TeamDelegate.hpp"
 
-TeamDelegate::TeamDelegate(std::shared_ptr<IRepository<domain::Team, std::string_view> > repository) : teamRepository(repository) {
+#include <utility>
+
+TeamDelegate::TeamDelegate(std::shared_ptr<IRepository<domain::Team, std::string_view> > repository) : teamRepository(std::move(repository)) {
 }
 
 std::vector<std::shared_ptr<domain::Team>> TeamDelegate::GetAllTeams() {

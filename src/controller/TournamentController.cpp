@@ -13,7 +13,7 @@ TournamentController::TournamentController(std::shared_ptr<ITournamentDelegate> 
 
 crow::response TournamentController::CreateTournament(const crow::request &request) const {
     nlohmann::json body = nlohmann::json::parse(request.body);
-    domain::Tournament tournament = body;
+    std::shared_ptr<domain::Tournament> tournament = std::make_shared<domain::Tournament>(body);
 
     std::string_view id = tournamentDelegate->CreateTournament(tournament);
     crow::response response;

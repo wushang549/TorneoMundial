@@ -2,7 +2,25 @@
 // Created by tomas on 8/31/25.
 //
 #include <string_view>
+#include <memory>
 
 #include "delegate/TournamentDelegate.hpp"
 
+#include "persistence/repository/IRepository.hpp"
 
+TournamentDelegate::TournamentDelegate(std::shared_ptr<IRepository<domain::Tournament, std::string> > repository) : tournamentRepository(std::move(repository)) {}
+
+
+std::string_view TournamentDelegate::CreateTournament(std::shared_ptr<domain::Tournament> tournament) {
+    //fill groups according to max groups
+    std::shared_ptr<domain::Tournament> tp = std::move(tournament);
+    // for (auto[i, g] = std::tuple{0, 'A'}; i < tp->Format().NumberOfGroups(); i++,g++) {
+    //     tp->Groups().push_back(domain::Group{std::format("Tournament {}", g)});
+    // }
+
+
+
+    //if groups are completed also create matches
+
+    return "new-id";
+}

@@ -5,21 +5,16 @@
 #ifndef TOURNAMENTS_TOURNAMENTDELEGATE_HPP
 #define TOURNAMENTS_TOURNAMENTDELEGATE_HPP
 
-#include <format>
+#include <string>
 #include "delegate/ITournamentDelegate.hpp"
+#include "persistence/repository/IRepository.hpp"
 
 class TournamentDelegate : public ITournamentDelegate{
+    std::shared_ptr<IRepository<domain::Tournament, std::string>> tournamentRepository;
 public:
-    std::string_view CreateTournament(const domain::Tournament& tournament) override {
-        //fill groups according to max groups
-        for (auto[i, g] = std::tuple{0, 'A'}; i < tournament.Format().NumberOfGroups(); i++,g++) {
-            tournament.Groups().push_back(domain::Group{std::format("Tournament {}", g)});
-        }
+    explicit TournamentDelegate(std::shared_ptr<IRepository<domain::Tournament, std::string>> repository);
 
-        //if groups are completed also create matches
-
-        return "new-id";
-    }
+    std::string_view CreateTournament(std::shared_ptr<domain::Tournament> tournament) override;
 };
 
 #endif //TOURNAMENTS_TOURNAMENTDELEGATE_HPP
