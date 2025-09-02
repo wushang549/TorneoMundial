@@ -47,12 +47,14 @@ std::vector<std::shared_ptr<domain::Tournament>> TournamentRepository::ReadAll()
     auto connection = dynamic_cast<PostgresConnection*>(&*pooled);
 
     pqxx::work tx(*(connection->connection));
-    pqxx::result result{tx.exec("select id, document->>'name' as name from tournaments")};
+    pqxx::result result{tx.exec("select id, document from tournaments")};
     tx.commit();
 
     for(auto row : result){
-        auto tournament = std::make_shared<domain::Tournament>(domain::Tournament{row["name"].c_str()});
+        nlohmann::json rowTournament = nlohmann::json::parse(row["document"].c_str());
+        auto tournament = std::make_shared<domain::Tournament>(rowTournament);
         tournament->Id() = row["id"].c_str();
+
         tournaments.push_back(tournament);
     }
 

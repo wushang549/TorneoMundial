@@ -22,6 +22,14 @@ crow::response TournamentController::CreateTournament(const crow::request &reque
     return response;
 }
 
-// REGISTER_ROUTE(TeamController, getTeam, "/teams/<string>", "GET"_method)
-// REGISTER_ROUTE(TeamController, getAllTeams, "/teams", "GET"_method)
+crow::response TournamentController::ReadAll() const {
+    nlohmann::json body = tournamentDelegate->ReadAll();
+    crow::response response;
+    response.code = crow::OK;
+    response.body = body.dump();
+
+    return response;
+}
+
+
 REGISTER_ROUTE(TournamentController, CreateTournament, "/tournaments", "POST"_method)

@@ -23,3 +23,7 @@ std::string_view TournamentDelegate::CreateTournament(std::shared_ptr<domain::To
 
     return "new-id";
 }
+
+std::vector<std::shared_ptr<domain::Tournament> > TournamentDelegate::ReadAll() {
+    return tournamentRepository->ReadAll();
+}

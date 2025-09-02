@@ -14,7 +14,7 @@
 class TournamentRepository : public IRepository<domain::Tournament, std::string> {
     std::shared_ptr<IDbConnectionProvider> connectionProvider;
 public:
-    TournamentRepository(std::shared_ptr<IDbConnectionProvider> connectionProvider);
+    explicit TournamentRepository(std::shared_ptr<IDbConnectionProvider> connectionProvider);
     std::shared_ptr<domain::Tournament> ReadById(std::string id) override;
     std::string Create (const domain::Tournament & entity) override;
     std::string Update (const domain::Tournament & entity) override;
