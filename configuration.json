@@ -1,6 +1,6 @@
 {
     "runConfig" : {
-        "port" : 8000,
+        "port" : 8080,
         "concurrency" : 4
     },
     "databaseConfig" : {

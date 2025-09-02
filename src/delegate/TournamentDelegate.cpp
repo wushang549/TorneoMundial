@@ -18,8 +18,7 @@ std::string_view TournamentDelegate::CreateTournament(std::shared_ptr<domain::To
     //     tp->Groups().push_back(domain::Group{std::format("Tournament {}", g)});
     // }
 
-
-
+    tournamentRepository->Create(*tp);
     //if groups are completed also create matches
 
     return "new-id";

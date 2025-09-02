@@ -18,6 +18,7 @@
 #include "controller/TournamentController.hpp"
 #include "delegate/TournamentDelegate.hpp"
 #include "persistence/configuration/PostgresConnectionProvider.hpp"
+#include "persistence/repository/TournamentRepository.hpp"
 
 namespace config {
     inline std::shared_ptr<Hypodermic::Container> containerSetup(){
@@ -34,11 +35,12 @@ namespace config {
             builder.registerInstance(postgressConnection).as<IDbConnectionProvider>();
         }
 
-        builder.registerType<TeamRepository>().as<IRepository<domain::Team, std::string_view>>();
+        builder.registerType<TeamRepository>().as<IRepository<domain::Team, std::string_view>>().singleInstance();
 
         builder.registerType<TeamDelegate>().as<ITeamDelegate>().singleInstance();
         builder.registerType<TeamController>().singleInstance();
 
+        builder.registerType<TournamentRepository>().as<IRepository<domain::Tournament, std::string>>().singleInstance();
         builder.registerType<TournamentDelegate>().as<ITournamentDelegate>().singleInstance();
         builder.registerType<TournamentController>().singleInstance();
 

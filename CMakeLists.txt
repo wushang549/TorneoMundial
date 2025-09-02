@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.10.0)
 project(Tournaments)
 
 set(CMAKE_CXX_STANDARD 23)
-set(SOURCES 
+set(SOURCES
+        src/persistence/repository/TournamentRepository.cpp
         src/delegate/TeamDelegate.cpp
         src/delegate/TournamentDelegate.cpp
         src/controller/TournamentController.cpp)

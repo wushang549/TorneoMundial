@@ -47,8 +47,26 @@ namespace domain {
             format.Type() = fromString(json["type"].get<std::string>());
     }
 
+    inline void to_json(nlohmann::json& json, const TournamentFormat& format) {
+        json = {{"maxTeamsPerGroup", format.MaxTeamsPerGroup()}, {"numberOfGroups", format.NumberOfGroups()}};
+        switch (format.Type()) {
+            case TournamentType::ROUND_ROBIN:
+                json["type"] = "ROUND_ROBIN";
+                break;
+            case TournamentType::NFL:
+                json["type"] = "NFL";
+                break;
+            default:
+                json["type"] = "ROUND_ROBIN";
+        }
+    }
+
     inline void to_json(nlohmann::json& json, const Tournament& tournament) {
-        json = {{"id", tournament.Id()}, {"name", tournament.Name()}};
+        json = {{"name", tournament.Name()}};
+        if (!tournament.Id().empty()) {
+            json["id"] = tournament.Id();
+        }
+        json["format"] = tournament.Format();
     }
 
     inline void from_json(const nlohmann::json& json, Tournament& tournament) {
