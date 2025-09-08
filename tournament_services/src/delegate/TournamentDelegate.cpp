@@ -8,8 +8,7 @@
 
 #include "persistence/repository/IRepository.hpp"
 
-TournamentDelegate::TournamentDelegate(std::shared_ptr<IRepository<domain::Tournament, std::string> > repository) : tournamentRepository(std::move(repository)) {}
-
+TournamentDelegate::TournamentDelegate(std::shared_ptr<IRepository<domain::Tournament, std::string> > repository, std::shared_ptr<MessagingProducer> producer) : tournamentRepository(std::move(repository)), producer(std::move(producer)) {}
 
 std::string_view TournamentDelegate::CreateTournament(std::shared_ptr<domain::Tournament> tournament) {
     //fill groups according to max groups
@@ -18,10 +17,11 @@ std::string_view TournamentDelegate::CreateTournament(std::shared_ptr<domain::To
     //     tp->Groups().push_back(domain::Group{std::format("Tournament {}", g)});
     // }
 
-    tournamentRepository->Create(*tp);
+    std::string id = tournamentRepository->Create(*tp);
+    producer->SendMessage(id);
     //if groups are completed also create matches
 
-    return "new-id";
+    return id;
 }
 
 std::vector<std::shared_ptr<domain::Tournament> > TournamentDelegate::ReadAll() {

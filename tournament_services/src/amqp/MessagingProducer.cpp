@@ -5,6 +5,7 @@
 #include <proton/container.hpp>
 #include <proton/messaging_handler.hpp>
 #include <proton/connection.hpp>
+#include <proton/connection_options.hpp>
 #include <proton/sender.hpp>
 #include <proton/message.hpp>
 #include <proton/transport.hpp>
@@ -16,8 +17,14 @@
 
 MessagingProducer::MessagingProducer(const std::string_view& url, const std::string_view& address): url(url), address(address) {
     containerThread = std::thread([this] {
+        proton::connection_options opts;
+        opts.user("artemis");
+        opts.password("artemis");
+        opts.sasl_allowed_mechs("PLAIN");
         running = true;
-        proton::container(*this).run();
+        auto container = proton::container(*this);
+        container.connect(this->url, opts);
+        container.run();
     });
 }
 

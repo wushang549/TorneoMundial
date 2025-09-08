@@ -4,11 +4,11 @@ set(TEST_SOURCES
         controller/TeamControllerTest.cpp
         controller/TournamentControllerTest.cpp)
 
-set(SOURCES ${SOURCES} ${TEST_SOURCES})
+set(SOURCES ${SERVICES_SOURCES} ${TEST_SOURCES})
 
 find_package(GTest CONFIG REQUIRED)
 
-include_directories(include)
+include_directories(../include)
 
 add_executable(${PROJECT_NAME}_runner
     ${TEST_SOURCES}

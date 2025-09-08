@@ -2,6 +2,7 @@ project(tournament_services)
 
 set(CMAKE_CXX_STANDARD 23)
 set(SERVICES_SOURCES
+        src/amqp/MessagingProducer.cpp
         src/delegate/TeamDelegate.cpp
         src/delegate/TournamentDelegate.cpp
         src/controller/TournamentController.cpp)
@@ -28,13 +29,11 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         asio::asio
         nlohmann_json::nlohmann_json
         libpqxx::pqxx
-        tournament_common
-)
+        tournament_common)
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${HYPODERMIC_INCLUDE_DIRS})
 
 configure_file(
-        ${CMAKE_SOURCE_DIR}/configuration.json   # source file
+        ${CMAKE_SOURCE_DIR}/${PROJECT_NAME}/configuration.json   # source file
         ${CMAKE_BINARY_DIR}/${PROJECT_NAME}/configuration.json  # destination
-        COPYONLY
-)
+        COPYONLY)

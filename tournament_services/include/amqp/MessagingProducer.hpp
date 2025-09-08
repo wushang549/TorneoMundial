@@ -7,6 +7,7 @@
 
 #include <condition_variable>
 #include <queue>
+#include <string>
 #include <string_view>
 #include <thread>
 #include <proton/messaging_handler.hpp>
@@ -14,8 +15,8 @@
 
 
 class MessagingProducer : public proton::messaging_handler {
-    std::string_view url;
-    std::string_view address;
+    std::string url;
+    std::string address;
     proton::sender sender;
 
     std::mutex mtx;

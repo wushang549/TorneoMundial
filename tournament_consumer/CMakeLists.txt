@@ -2,7 +2,6 @@ project(tournament_consumer)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CONSUMER_SOURCES
-        src/amqp/MessagingProducer.cpp
 )
 
 find_package(libpqxx CONFIG REQUIRED)
@@ -29,7 +28,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 target_include_directories(${PROJECT_NAME} PRIVATE ${HYPODERMIC_INCLUDE_DIRS})
 
 configure_file(
-        ${CMAKE_SOURCE_DIR}/configuration.json   # source file
+        ${CMAKE_SOURCE_DIR}/${PROJECT_NAME}/configuration.json   # source file
         ${CMAKE_BINARY_DIR}/${PROJECT_NAME}/configuration.json  # destination
         COPYONLY
 )

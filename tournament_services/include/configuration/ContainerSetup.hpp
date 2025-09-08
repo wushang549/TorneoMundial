@@ -13,6 +13,7 @@
 #include "persistence/repository/IRepository.hpp"
 #include "persistence/repository/TeamRepository.hpp"
 #include "RunConfiguration.hpp"
+#include "amqp/MessagingProducer.hpp"
 #include "delegate/TeamDelegate.hpp"
 #include "controller/TeamController.hpp"
 #include "controller/TournamentController.hpp"
@@ -28,11 +29,14 @@ namespace config {
         if(file.is_open()) {
             nlohmann::json configuration;
             file >> configuration;
-            std::shared_ptr<config::RunConfiguration> appConfig = std::make_shared<config::RunConfiguration>(configuration["runConfig"]);
+            std::shared_ptr<RunConfiguration> appConfig = std::make_shared<RunConfiguration>(configuration["runConfig"]);
             builder.registerInstance(appConfig);
           
             std::shared_ptr<PostgresConnectionProvider> postgressConnection = std::make_shared<PostgresConnectionProvider>(configuration["databaseConfig"]["connectionString"].get<std::string>(), configuration["databaseConfig"]["poolSize"].get<size_t>());
             builder.registerInstance(postgressConnection).as<IDbConnectionProvider>();
+
+            std::shared_ptr<MessagingProducer> tournamentAddTeamProducer = std::make_shared<MessagingProducer>(configuration["activemq"]["broker-url"].get<std::string>(), "tournament-add-team");
+            builder.registerInstance(tournamentAddTeamProducer); //.named("tournament-add-team");
         }
 
         builder.registerType<TeamRepository>().as<IRepository<domain::Team, std::string_view>>().singleInstance();
