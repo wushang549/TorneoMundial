@@ -1,5 +1,7 @@
 {
   "dependencies" : [
-    "crow", "hypodermic", "libpqxx", "gtest", "nlohmann-json", "amqpcpp"
-  ]
+    "crow", "hypodermic", "libpqxx", "gtest", "nlohmann-json", "qpid-proton"
+  ],
+  "version": "1.0.0",
+  "name": "tournaments"
 }

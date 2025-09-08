@@ -1,5 +1,5 @@
 -- podman run -d --replace --name=tournament_db --network development -e POSTGRES_PASSWORD=password -p 5432:5432 postgres:17.6-alpine3.22
--- podman exec -i tournament-db psql -U postgres -d postgres < db_script.sql
+-- podman exec -i tournament_db psql -U postgres -d postgres < db_script.sql
 
 CREATE USER tournament_svc WITH PASSWORD 'password';
 CREATE USER tournament_admin WITH PASSWORD 'password';

@@ -2,7 +2,7 @@
 // Created by tsuny on 8/31/25.
 //
 
-#include "configuration/RouteDefinition.hpp"
+#include "../../include/configuration/RouteDefinition.hpp"
 #include "controller/TournamentController.hpp"
 
 #include <utility>
@@ -33,3 +33,4 @@ crow::response TournamentController::ReadAll() const {
 
 
 REGISTER_ROUTE(TournamentController, CreateTournament, "/tournaments", "POST"_method)
+REGISTER_ROUTE(TournamentController, ReadAll, "/tournaments", "GET"_method)

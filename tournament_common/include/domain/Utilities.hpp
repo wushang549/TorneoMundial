@@ -61,6 +61,14 @@ namespace domain {
         }
     }
 
+    inline void to_json(nlohmann::json& json, std::shared_ptr<Tournament> tournament) {
+        json = {{"name", tournament->Name()}};
+        if (!tournament->Id().empty()) {
+            json["id"] = tournament->Id();
+        }
+        json["format"] = tournament->Format();
+    }
+
     inline void from_json(const nlohmann::json& json, std::shared_ptr<Tournament> tournament) {
         if(json.contains("id")) {
             tournament->Id() = json["id"].get<std::string>();

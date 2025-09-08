@@ -1,8 +1,8 @@
 #include<Hypodermic/Hypodermic.h>
 
 
-#include "configuration/ContainerSetup.hpp"
-#include "configuration/RunConfiguration.hpp"
+#include "include/configuration/ContainerSetup.hpp"
+#include "include/configuration/RunConfiguration.hpp"
 
 int main() {
     const auto container = config::containerSetup();
