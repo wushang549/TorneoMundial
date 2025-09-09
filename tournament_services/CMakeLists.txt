@@ -2,7 +2,6 @@ project(tournament_services)
 
 set(CMAKE_CXX_STANDARD 23)
 set(SERVICES_SOURCES
-        src/amqp/MessagingProducer.cpp
         src/delegate/TeamDelegate.cpp
         src/delegate/TournamentDelegate.cpp
         src/controller/TournamentController.cpp)
@@ -14,6 +13,7 @@ find_package(Crow CONFIG REQUIRED)
 find_package(libpqxx CONFIG REQUIRED)
 find_path(HYPODERMIC_INCLUDE_DIRS "Hypodermic/ActivatedRegistrationInfo.h")
 find_package(nlohmann_json CONFIG REQUIRED)
+find_package(activemq-cpp CONFIG REQUIRED)
 
 add_subdirectory(tests)
 
@@ -29,6 +29,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         asio::asio
         nlohmann_json::nlohmann_json
         libpqxx::pqxx
+        activemq-cpp
         tournament_common)
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${HYPODERMIC_INCLUDE_DIRS})

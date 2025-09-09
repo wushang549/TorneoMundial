@@ -7,8 +7,6 @@ set(CONSUMER_SOURCES
 find_package(libpqxx CONFIG REQUIRED)
 find_path(HYPODERMIC_INCLUDE_DIRS "Hypodermic/ActivatedRegistrationInfo.h")
 find_package(nlohmann_json CONFIG REQUIRED)
-find_package(ProtonCpp CONFIG REQUIRED)
-
 
 include_directories(include)
 

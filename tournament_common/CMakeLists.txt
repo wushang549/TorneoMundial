@@ -18,5 +18,4 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         asio::asio
         nlohmann_json::nlohmann_json
         libpqxx::pqxx
-        Proton::cpp
 )

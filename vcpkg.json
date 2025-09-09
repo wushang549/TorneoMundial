@@ -1,7 +1,9 @@
 {
-  "dependencies" : [
-    "crow", "hypodermic", "libpqxx", "gtest", "nlohmann-json", "qpid-proton"
-  ],
-  "version": "1.0.0",
-  "name": "tournaments"
+  "builtin-baseline": "a9fb6f20617570abcf11dcae2bcf7d524c6b053e",
+  "dependencies" : [ "crow", "hypodermic", "libpqxx", "gtest", "nlohmann-json", {
+    "name" : "activemq-cpp",
+    "version>=" : "3.9.5#17"
+  } ],
+  "version" : "1.0.0",
+  "name" : "tournaments"
 }
