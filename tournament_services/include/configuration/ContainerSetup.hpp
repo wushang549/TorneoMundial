@@ -19,6 +19,7 @@
 #include "delegate/TournamentDelegate.hpp"
 #include "persistence/configuration/PostgresConnectionProvider.hpp"
 #include "persistence/repository/TournamentRepository.hpp"
+#include "cms/MessageProducer.hpp"
 
 namespace config {
     inline std::shared_ptr<Hypodermic::Container> containerSetup(){
@@ -38,6 +39,7 @@ namespace config {
             // builder.registerInstance(tournamentAddTeamProducer); //.named("tournament-add-team");
         }
 
+        builder.registerType<MessageProducer>().singleInstance<>();
         builder.registerType<TeamRepository>().as<IRepository<domain::Team, std::string_view>>().singleInstance();
 
         builder.registerType<TeamDelegate>().as<ITeamDelegate>().singleInstance();

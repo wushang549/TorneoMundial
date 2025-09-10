@@ -13,7 +13,7 @@ find_package(Crow CONFIG REQUIRED)
 find_package(libpqxx CONFIG REQUIRED)
 find_path(HYPODERMIC_INCLUDE_DIRS "Hypodermic/ActivatedRegistrationInfo.h")
 find_package(nlohmann_json CONFIG REQUIRED)
-find_package(activemq-cpp CONFIG REQUIRED)
+
 
 add_subdirectory(tests)
 
@@ -29,7 +29,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         asio::asio
         nlohmann_json::nlohmann_json
         libpqxx::pqxx
-        activemq-cpp
+        unofficial::activemq-cpp::activemq-cpp
         tournament_common)
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${HYPODERMIC_INCLUDE_DIRS})

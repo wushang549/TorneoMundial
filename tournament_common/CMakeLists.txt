@@ -14,8 +14,6 @@ target_include_directories(${PROJECT_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE
-        Crow::Crow
-        asio::asio
         nlohmann_json::nlohmann_json
         libpqxx::pqxx
 )

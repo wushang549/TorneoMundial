@@ -10,7 +10,8 @@
 #include "persistence/configuration/PostgresConnection.hpp"
 
 
-TournamentRepository::TournamentRepository(std::shared_ptr<IDbConnectionProvider> connection) : connectionProvider(std::move(connection)) {}
+TournamentRepository::TournamentRepository(std::shared_ptr<IDbConnectionProvider> connection) : connectionProvider(std::move(connection)) {
+}
 
 std::shared_ptr<domain::Tournament> TournamentRepository::ReadById(std::string id) {
     return std::make_shared<domain::Tournament>(domain::Tournament());
@@ -18,14 +19,12 @@ std::shared_ptr<domain::Tournament> TournamentRepository::ReadById(std::string i
 
 std::string TournamentRepository::Create (const domain::Tournament & entity) {
 
-    nlohmann::json tournamentDoc = entity;
+    const nlohmann::json tournamentDoc = entity;
 
     auto pooled = connectionProvider->Connection();
-    auto connection = dynamic_cast<PostgresConnection*>(&*pooled);
-    connection->connection->prepare("insert_tournament", "insert into TOURNAMENTS (document) values($1) RETURNING id");
-
+    const auto connection = dynamic_cast<PostgresConnection*>(&*pooled);
     pqxx::work tx(*(connection->connection));
-    pqxx::result result = tx.exec(pqxx::prepped{"insert_tournament"}, tournamentDoc.dump());
+    const pqxx::result result = tx.exec(pqxx::prepped{"insert_tournament"}, tournamentDoc.dump());
 
     tx.commit();
 
@@ -44,10 +43,10 @@ std::vector<std::shared_ptr<domain::Tournament>> TournamentRepository::ReadAll()
     std::vector<std::shared_ptr<domain::Tournament>> tournaments;
 
     auto pooled = connectionProvider->Connection();
-    auto connection = dynamic_cast<PostgresConnection*>(&*pooled);
+    const auto connection = dynamic_cast<PostgresConnection*>(&*pooled);
 
     pqxx::work tx(*(connection->connection));
-    pqxx::result result{tx.exec("select id, document from tournaments")};
+    const pqxx::result result{tx.exec("select id, document from tournaments")};
     tx.commit();
 
     for(auto row : result){

@@ -1,9 +1,5 @@
 {
-  "builtin-baseline": "a9fb6f20617570abcf11dcae2bcf7d524c6b053e",
-  "dependencies" : [ "crow", "hypodermic", "libpqxx", "gtest", "nlohmann-json", {
-    "name" : "activemq-cpp",
-    "version>=" : "3.9.5#17"
-  } ],
+  "dependencies" : [ "crow", "hypodermic", "libpqxx", "gtest", "nlohmann-json", "activemq-cpp"],
   "version" : "1.0.0",
   "name" : "tournaments"
 }

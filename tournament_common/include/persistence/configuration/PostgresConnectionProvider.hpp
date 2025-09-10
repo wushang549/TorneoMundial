@@ -22,11 +22,12 @@ public:
     PostgresConnectionProvider(std::string_view connectionString, size_t poolSize) : connectionString(connectionString), poolSize(poolSize) {
         for (size_t i = 0; i < poolSize; i++) {
             connectionPool.push(std::make_unique<pqxx::connection>(connectionString.data()));
+            connectionPool.back()->prepare("insert_tournament", "insert into TOURNAMENTS (document) values($1) RETURNING id");
         }
     }
 
     PooledConnection Connection() override {
-        std::unique_lock<std::mutex> lock(connectionPoolMutex);
+        std::unique_lock lock(connectionPoolMutex);
 
         // wait until a connection is available
         connectionPoolCondition.wait(lock, [this] { return !connectionPool.empty(); });

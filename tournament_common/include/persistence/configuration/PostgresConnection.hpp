@@ -11,7 +11,8 @@
 
 struct PostgresConnection final : IDbConnection{
     std::unique_ptr<pqxx::connection> connection;
-    explicit PostgresConnection(std::unique_ptr<pqxx::connection> connection) : connection(std::move(connection)) {}
+    explicit PostgresConnection(std::unique_ptr<pqxx::connection> connection) : connection(std::move(connection)) {
+    }
 };
 
 
