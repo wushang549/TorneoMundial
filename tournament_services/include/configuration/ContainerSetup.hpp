@@ -13,6 +13,7 @@
 #include "persistence/repository/IRepository.hpp"
 #include "persistence/repository/TeamRepository.hpp"
 #include "RunConfiguration.hpp"
+#include "cms/Connection.hpp"
 #include "delegate/TeamDelegate.hpp"
 #include "controller/TeamController.hpp"
 #include "controller/TournamentController.hpp"
@@ -20,6 +21,7 @@
 #include "persistence/configuration/PostgresConnectionProvider.hpp"
 #include "persistence/repository/TournamentRepository.hpp"
 #include "cms/MessageProducer.hpp"
+#include "cms/Connection.hpp"
 
 namespace config {
     inline std::shared_ptr<Hypodermic::Container> containerSetup(){
@@ -35,8 +37,10 @@ namespace config {
             std::shared_ptr<PostgresConnectionProvider> postgressConnection = std::make_shared<PostgresConnectionProvider>(configuration["databaseConfig"]["connectionString"].get<std::string>(), configuration["databaseConfig"]["poolSize"].get<size_t>());
             builder.registerInstance(postgressConnection).as<IDbConnectionProvider>();
 
-            // std::shared_ptr<MessagingProducer> tournamentAddTeamProducer = std::make_shared<MessagingProducer>(configuration["activemq"]["broker-url"].get<std::string>(), "tournament-add-team");
-            // builder.registerInstance(tournamentAddTeamProducer); //.named("tournament-add-team");
+            auto connectionFactory = std::make_shared<activemq::core::ActiveMQConnectionFactory>(configuration["activemq"]["broker-url"].get<std::string>());
+            builder.registerInstance(connectionFactory);
+
+            builder.registerType<Connection>().singleInstance<>();
         }
 
         builder.registerType<MessageProducer>().singleInstance<>();

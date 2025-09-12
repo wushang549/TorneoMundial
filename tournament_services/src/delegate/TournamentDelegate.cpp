@@ -8,7 +8,9 @@
 
 #include "persistence/repository/IRepository.hpp"
 
-TournamentDelegate::TournamentDelegate(std::shared_ptr<IRepository<domain::Tournament, std::string> > repository, std::shared_ptr<MessageProducer> producer) : tournamentRepository(std::move(repository)), producer(std::move(producer)) {}
+TournamentDelegate::TournamentDelegate(std::shared_ptr<IRepository<domain::Tournament, std::string> > repository, std::shared_ptr<Connection> connection) : tournamentRepository(std::move(repository)) {
+    producer = connection->GetQueueProducer("tournament.create.queue");
+}
 
 std::string_view TournamentDelegate::CreateTournament(std::shared_ptr<domain::Tournament> tournament) {
     //fill groups according to max groups
