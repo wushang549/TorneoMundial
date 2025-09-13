@@ -5,6 +5,7 @@
 #include "../../include/configuration/RouteDefinition.hpp"
 #include "controller/TournamentController.hpp"
 
+#include <string>
 #include <utility>
 #include  "domain/Tournament.hpp"
 #include "domain/Utilities.hpp"
@@ -15,10 +16,10 @@ crow::response TournamentController::CreateTournament(const crow::request &reque
     nlohmann::json body = nlohmann::json::parse(request.body);
     std::shared_ptr<domain::Tournament> tournament = std::make_shared<domain::Tournament>(body);
 
-    std::string_view id = tournamentDelegate->CreateTournament(tournament);
+    std::string id = tournamentDelegate->CreateTournament(tournament);
     crow::response response;
     response.code = crow::CREATED;
-    response.add_header("location", id.data());
+    response.add_header("location", id);
     return response;
 }
 

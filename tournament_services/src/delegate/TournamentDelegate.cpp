@@ -1,6 +1,8 @@
 //
 // Created by tomas on 8/31/25.
 //
+
+#include <string>
 #include <string_view>
 #include <memory>
 
@@ -8,11 +10,9 @@
 
 #include "persistence/repository/IRepository.hpp"
 
-TournamentDelegate::TournamentDelegate(std::shared_ptr<IRepository<domain::Tournament, std::string> > repository, std::shared_ptr<Connection> connection) : tournamentRepository(std::move(repository)) {
-    producer = connection->GetQueueProducer("tournament.create.queue");
-}
+TournamentDelegate::TournamentDelegate(std::shared_ptr<IRepository<domain::Tournament, std::string> > repository, std::shared_ptr<IMessageProducer> producer) : tournamentRepository(std::move(repository)), producer(std::move(producer)) {}
 
-std::string_view TournamentDelegate::CreateTournament(std::shared_ptr<domain::Tournament> tournament) {
+std::string TournamentDelegate::CreateTournament(std::shared_ptr<domain::Tournament> tournament) {
     //fill groups according to max groups
     std::shared_ptr<domain::Tournament> tp = std::move(tournament);
     // for (auto[i, g] = std::tuple{0, 'A'}; i < tp->Format().NumberOfGroups(); i++,g++) {
