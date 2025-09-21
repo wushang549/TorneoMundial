@@ -6,6 +6,7 @@
 #define TOURNAMENTS_IDBCONNECTIONPROVIDER_HPP
 
 #include <memory>
+#include <functional>
 
 class IDbConnection {
 public:

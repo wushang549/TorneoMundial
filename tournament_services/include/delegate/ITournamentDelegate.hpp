@@ -5,6 +5,7 @@
 #ifndef TOURNAMENTS_ITOURNAMENTDELEGATE_HPP
 #define TOURNAMENTS_ITOURNAMENTDELEGATE_HPP
 
+#include <string>
 #include <string_view>
 #include <memory>
 
@@ -13,7 +14,7 @@
 class ITournamentDelegate {
 public:
     virtual ~ITournamentDelegate() = default;
-    virtual std::string_view CreateTournament(std::shared_ptr<domain::Tournament> tournament) = 0;
+    virtual std::string CreateTournament(std::shared_ptr<domain::Tournament> tournament) = 0;
     virtual std::vector<std::shared_ptr<domain::Tournament>> ReadAll() = 0;
 };
 
