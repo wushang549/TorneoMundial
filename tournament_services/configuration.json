@@ -9,6 +9,6 @@
         "connectionString" : "postgresql://tournament_svc:password@localhost:5432/tournament_db"
     },
     "activemq": {
-        "broker-url" : "amqp://localhost:5672"
+        "broker-url" : "failover://(tcp://localhost:61616)"
     }
 }

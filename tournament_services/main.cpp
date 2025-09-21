@@ -1,4 +1,4 @@
-#include<Hypodermic/Hypodermic.h>
+
 #include <activemq/library/ActiveMQCPP.h>
 
 #include "include/configuration/ContainerSetup.hpp"
