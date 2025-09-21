@@ -8,11 +8,10 @@
 
 #include "persistence/repository/IRepository.hpp"
 
-TournamentDelegate::TournamentDelegate(std::shared_ptr<IRepository<domain::Tournament, std::string> > repository, std::shared_ptr<Connection> connection) : tournamentRepository(std::move(repository)) {
-    producer = connection->GetQueueProducer("tournament.create.queue");
+TournamentDelegate::TournamentDelegate(std::shared_ptr<IRepository<domain::Tournament, std::string> > repository, std::shared_ptr<QueueMessageProducer> producer) : tournamentRepository(std::move(repository)), producer(std::move(producer)) {
 }
 
-std::string_view TournamentDelegate::CreateTournament(std::shared_ptr<domain::Tournament> tournament) {
+std::string TournamentDelegate::CreateTournament(std::shared_ptr<domain::Tournament> tournament) {
     //fill groups according to max groups
     std::shared_ptr<domain::Tournament> tp = std::move(tournament);
     // for (auto[i, g] = std::tuple{0, 'A'}; i < tp->Format().NumberOfGroups(); i++,g++) {
@@ -20,7 +19,7 @@ std::string_view TournamentDelegate::CreateTournament(std::shared_ptr<domain::To
     // }
 
     std::string id = tournamentRepository->Create(*tp);
-    producer->SendMessage(id);
+    producer->SendMessage(id, "tournament.created");
 
     //if groups are completed also create matches
 

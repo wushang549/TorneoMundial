@@ -6,7 +6,6 @@
 #define TOURNAMENTS_ITOURNAMENTDELEGATE_HPP
 
 #include <string>
-#include <string_view>
 #include <memory>
 
 #include "domain/Tournament.hpp"
