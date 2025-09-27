@@ -1,8 +1,10 @@
 #include <gtest/gtest.h>
 #include "domain/Team.hpp"
+#include "controller/TournamentController.hpp"
 
 
 TEST(TournamentControllerTest, CreateTournament) {
+    std::shared_ptr<TournamentController> tournamentController;
     std::string id = "ID";
     std::string name = "Name";
 

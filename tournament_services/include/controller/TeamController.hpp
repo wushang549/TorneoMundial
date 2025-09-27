@@ -22,7 +22,7 @@ static const std::regex ID_VALUE("[A-Za-z0-9\\-]+");
 class TeamController {
     std::shared_ptr<ITeamDelegate> teamDelegate;
 public:
-    explicit TeamController(std::shared_ptr<ITeamDelegate> teamDelegate) : teamDelegate(std::move(teamDelegate)) {}
+    explicit TeamController(const std::shared_ptr<ITeamDelegate>& teamDelegate) : teamDelegate(teamDelegate) {}
 
     [[nodiscard]] crow::response getTeam(const std::string& teamId) const {
         if(!std::regex_match(teamId, ID_VALUE)) {

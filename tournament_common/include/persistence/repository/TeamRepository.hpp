@@ -48,8 +48,6 @@ public:
         auto pooled = connectionProvider->Connection();
         auto connection = dynamic_cast<PostgresConnection*>(&*pooled);
         nlohmann::json teamBody = entity;
-        
-        connection->connection->prepare("insert_team", "insert into TEAMS (document) values($1) RETURNING id");
 
         pqxx::work tx(*(connection->connection));
         pqxx::result result = tx.exec(pqxx::prepped{"insert_team"}, teamBody.dump());
