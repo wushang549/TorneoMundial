@@ -5,6 +5,7 @@
 
 TEST(TournamentControllerTest, CreateTournament) {
     std::shared_ptr<TournamentController> tournamentController;
+    tournamentController->ReadAll();
     std::string id = "ID";
     std::string name = "Name";
 
