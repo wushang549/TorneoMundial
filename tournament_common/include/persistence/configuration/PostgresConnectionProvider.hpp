@@ -25,7 +25,10 @@ public:
             connectionPool.back()->prepare("insert_tournament", "insert into TOURNAMENTS (document) values($1) RETURNING id");
             connectionPool.back()->prepare("select_tournament_by_id", "select * from TOURNAMENTS where id = $1");
             connectionPool.back()->prepare("insert_team", "insert into TEAMS (document) values($1) RETURNING id");
-            connectionPool.back()->prepare("insert_group", "insert into GROUPS (document) values($1) RETURNING id");
+
+            connectionPool.back()->prepare("insert_group", "insert into GROUPS (tournament_id, document) values($1, $2) RETURNING id");
+            connectionPool.back()->prepare("select_groups_by_tournament", "select * from GROUPS where tournament_id = $1");
+            connectionPool.back()->prepare("select_group_by_tournamentid_groupid", "select * from GROUPS where tournament_id = $1 and id = $2");
         }
     }
 

@@ -32,10 +32,18 @@ GroupController::~GroupController()
 }
 
 crow::response GroupController::GetGroups(const std::string& tournamentId){
-    return crow::response{crow::NOT_IMPLEMENTED};
+    if (auto groups = this->groupDelegate->GetGroups(tournamentId)) {
+        const nlohmann::json body = *groups;
+        return crow::response{crow::OK, body.dump()};
+    }
+    return crow::response{crow::INTERNAL_SERVER_ERROR};
 }
 crow::response GroupController::GetGroup(const std::string& tournamentId, const std::string& groupId){
-    return crow::response{crow::NOT_IMPLEMENTED};
+    if (auto group = this->groupDelegate->GetGroup(tournamentId, groupId)) {
+        const nlohmann::json body = *group;
+        return crow::response{crow::OK, body.dump()};
+    }
+    return crow::response{crow::INTERNAL_SERVER_ERROR};
 }
 crow::response GroupController::CreateGroup(const crow::request& request, const std::string& tournamentId){
     auto requestBody = nlohmann::json::parse(request.body);
