@@ -20,6 +20,7 @@ public:
     std::expected<std::shared_ptr<domain::Group>, std::string> GetGroup(const std::string_view& tournamentId, const std::string_view& groupId) override;
     std::expected<void, std::string> UpdateGroup(const std::string_view& tournamentId, const domain::Group& group) override;
     std::expected<void, std::string> RemoveGroup(const std::string_view& tournamentId, const std::string_view& groupId) override;
+    std::expected<void, std::string> UpdateTeams(const std::string_view& tournamentId, const std::string_view& groupId, const std::vector<domain::Team>& team) override;
 };
 
 GroupDelegate::GroupDelegate(const std::shared_ptr<TournamentRepository>& tournamentRepository, const std::shared_ptr<IGroupRepository>& groupRepository, const std::shared_ptr<TeamRepository>& teamRepository)
@@ -63,6 +64,32 @@ inline std::expected<void, std::string> GroupDelegate::UpdateGroup(const std::st
 }
 inline std::expected<void, std::string> GroupDelegate::RemoveGroup(const std::string_view& tournamentId, const std::string_view& groupId) {
     return std::unexpected("Not implemented");
+}
+
+std::expected<void, std::string> GroupDelegate::UpdateTeams(const std::string_view& tournamentId, const std::string_view& groupId, const std::vector<domain::Team>& teams) {
+    const auto group = groupRepository->FindByTournamentIdAndGroupId(tournamentId, groupId);
+    if (group == nullptr) {
+        return std::unexpected("Group doesn't exist");
+    }
+    if (group->Teams().size() + teams.size() >= 16) {
+        return std::unexpected("Group at max capacity");
+    }
+    for (const auto& team : teams) {
+        for (const auto& pteam : group->Teams()) {
+            if (team.Id == pteam.Id) {
+                return std::unexpected("Team already exist");
+            }
+        }
+    }
+    for (const auto& team : teams) {
+        const auto persistedTeam = teamRepository->ReadById(team.Id);
+        if (persistedTeam == nullptr) {
+            return std::unexpected("Team doesn't exist");
+        }
+        group->Teams().push_back(*persistedTeam);
+    }
+    groupRepository->Update(*group);
+    return {};
 }
 
 #endif /* SERVICE_GROUP_DELEGATE_HPP */

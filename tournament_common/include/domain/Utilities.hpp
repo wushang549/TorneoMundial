@@ -20,6 +20,19 @@ namespace domain {
         json.at("name").get_to(team.Name);
     }
 
+    inline void from_json(const nlohmann::json& json, std::vector<Team>& teams) {
+        for (auto j = json.begin(); j != json.end(); ++j) {
+            Team team;
+            if(j.value().contains("id")) {
+                j.value().at("id").get_to(team.Id);
+            }
+            if(j.value().contains("name")) {
+                j.value().at("name").get_to(team.Name);
+            }
+            teams.push_back(team);
+        }
+    }
+
     inline void to_json(nlohmann::json& json, const std::shared_ptr<Team>& team) {
         json = nlohmann::basic_json();
         json["name"] = team->Name;
@@ -69,7 +82,7 @@ namespace domain {
         json["format"] = tournament->Format();
     }
 
-    inline void from_json(const nlohmann::json& json, const std::shared_ptr<Tournament>& tournament) {
+    inline void from_json(const nlohmann::json& json, std::shared_ptr<Tournament>& tournament) {
         if(json.contains("id")) {
             tournament->Id() = json["id"].get<std::string>();
         }
@@ -103,17 +116,18 @@ namespace domain {
             group.TournamentId() = json["tournamentId"].get<std::string>();
         }
         json["name"].get_to(group.Name());
+        json["teams"].get_to(group.Teams());
     }
 
-    inline void from_json(const nlohmann::json& json, const std::shared_ptr<Group>& group) {
-        if(json.contains("id")) {
-            group->Id() = json["id"].get<std::string>();
-        }
-        if(json.contains("tournamentId")) {
-            group->TournamentId() = json["tournamentId"].get<std::string>();
-        }
-        json["name"].get_to(group->Name());
-    }
+    // inline void from_json(const nlohmann::json& json, std::shared_ptr<Group>& group) {
+    //     if(json.contains("id")) {
+    //         group->Id() = json["id"].get<std::string>();
+    //     }
+    //     if(json.contains("tournamentId")) {
+    //         group->TournamentId() = json["tournamentId"].get<std::string>();
+    //     }
+    //     json["name"].get_to(group->Name());
+    // }
 
     inline void to_json(nlohmann::json& json, const std::shared_ptr<Group>& group) {
         json["name"] = group->Name();

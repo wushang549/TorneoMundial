@@ -25,7 +25,16 @@ std::string GroupRepository::Create (const domain::Group & entity) {
 }
 
 std::string GroupRepository::Update (const domain::Group & entity) {
-    return "update-id";
+    auto pooled = connectionProvider->Connection();
+    auto connection = dynamic_cast<PostgresConnection*>(&*pooled);
+    nlohmann::json groupBody = entity;
+
+    pqxx::work tx(*(connection->connection));
+    pqxx::result result = tx.exec(pqxx::prepped{"update_group"}, pqxx::params{entity.Id(), groupBody.dump()});
+
+    tx.commit();
+
+    return entity.Id();
 }
 
 void GroupRepository::Delete(std::string id) {
