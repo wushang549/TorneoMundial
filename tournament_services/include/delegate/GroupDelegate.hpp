@@ -75,20 +75,17 @@ std::expected<void, std::string> GroupDelegate::UpdateTeams(const std::string_vi
         return std::unexpected("Group at max capacity");
     }
     for (const auto& team : teams) {
-        for (const auto& pteam : group->Teams()) {
-            if (team.Id == pteam.Id) {
-                return std::unexpected("Team already exist");
-            }
+        if (const auto groupTeams = groupRepository->FindByTournamentIdAndTeamId(tournamentId, team.Id)) {
+            return std::unexpected(std::format("Team {} already exist", team.Id));
         }
     }
     for (const auto& team : teams) {
         const auto persistedTeam = teamRepository->ReadById(team.Id);
         if (persistedTeam == nullptr) {
-            return std::unexpected("Team doesn't exist");
+            return std::unexpected(std::format("Team {} doesn't exist", team.Id));
         }
-        group->Teams().push_back(*persistedTeam);
+        groupRepository->UpdateGroupAddTeam(groupId, persistedTeam);
     }
-    groupRepository->Update(*group);
     return {};
 }
 

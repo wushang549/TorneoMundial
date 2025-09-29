@@ -75,10 +75,12 @@ crow::response GroupController::UpdateGroup(const crow::request& request){
 
 crow::response GroupController::UpdateTeams(const crow::request& request, const std::string& tournamentId, const std::string& groupId) {
     const std::vector<domain::Team> teams = nlohmann::json::parse(request.body);
-    if (const auto result = groupDelegate->UpdateTeams(tournamentId, groupId, teams)) {
+    const auto result = groupDelegate->UpdateTeams(tournamentId, groupId, teams);
+    if (result) {
         return crow::response{crow::NO_CONTENT};
     }
-    return crow::response{crow::INTERNAL_SERVER_ERROR};
+
+    return crow::response{422, result.error()};
 }
 REGISTER_ROUTE(GroupController, GetGroups, "/tournaments/<string>/groups", "GET"_method)
 REGISTER_ROUTE(GroupController, GetGroup, "/tournaments/<string>/groups/<string>", "GET"_method)
