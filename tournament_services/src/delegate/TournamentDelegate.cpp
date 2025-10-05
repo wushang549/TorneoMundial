@@ -1,31 +1,50 @@
-//
-// Created by tomas on 8/31/25.
-//
-#include <string_view>
-#include <memory>
-
 #include "delegate/TournamentDelegate.hpp"
+#include <utility>
 
-#include "persistence/repository/IRepository.hpp"
-
-TournamentDelegate::TournamentDelegate(std::shared_ptr<IRepository<domain::Tournament, std::string> > repository, std::shared_ptr<QueueMessageProducer> producer) : tournamentRepository(std::move(repository)), producer(std::move(producer)) {
-}
+TournamentDelegate::TournamentDelegate(
+    std::shared_ptr<IRepository<domain::Tournament, std::string>> repository,
+    std::shared_ptr<QueueMessageProducer> producer)
+    : tournamentRepository(std::move(repository)), producer(std::move(producer)) {}
 
 std::string TournamentDelegate::CreateTournament(std::shared_ptr<domain::Tournament> tournament) {
-    //fill groups according to max groups
     std::shared_ptr<domain::Tournament> tp = std::move(tournament);
-    // for (auto[i, g] = std::tuple{0, 'A'}; i < tp->Format().NumberOfGroups(); i++,g++) {
-    //     tp->Groups().push_back(domain::Group{std::format("Tournament {}", g)});
-    // }
-
-    std::string id = tournamentRepository->Create(*tp);
-    producer->SendMessage(id, "tournament.created");
-
-    //if groups are completed also create matches
-
+    const std::string id = tournamentRepository->Create(*tp);
+    if (producer) {
+        producer->SendMessage(id, "tournament.created");
+    }
     return id;
 }
 
-std::vector<std::shared_ptr<domain::Tournament> > TournamentDelegate::ReadAll() {
+std::vector<std::shared_ptr<domain::Tournament>> TournamentDelegate::ReadAll() {
     return tournamentRepository->ReadAll();
+}
+
+std::shared_ptr<domain::Tournament> TournamentDelegate::ReadById(const std::string& id) {
+    return tournamentRepository->ReadById(id);
+}
+
+bool TournamentDelegate::UpdateTournament(const std::string& id, const domain::Tournament& tournament) {
+    // Check existence first to emulate 404
+    if (tournamentRepository->ReadById(id) == nullptr) {
+        return false;
+    }
+    // IRepository::Update(const Type&) — no id param
+    (void)tournamentRepository->Update(tournament);
+    if (producer) {
+        producer->SendMessage(id, "tournament.updated");
+    }
+    return true;
+}
+
+bool TournamentDelegate::DeleteTournament(const std::string& id) {
+    // Check existence first
+    if (tournamentRepository->ReadById(id) == nullptr) {
+        return false;
+    }
+    // IRepository::Delete(const Id&) returns void
+    tournamentRepository->Delete(id);
+    if (producer) {
+        producer->SendMessage(id, "tournament.deleted");
+    }
+    return true;
 }
