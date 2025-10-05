@@ -22,22 +22,26 @@ std::string_view TeamDelegate::SaveTeam(const domain::Team& team) {
     return teamRepository->Create(team);
 }
 
+// TeamDelegate.cpp
 bool TeamDelegate::UpdateTeam(std::string_view id, const domain::Team& team) {
-    // 1) Check existence to be able to return 404 semantics to controller
     if (teamRepository->ReadById(std::string{id}) == nullptr) {
         return false;
     }
-    // 2) IRepository::Update(const Type&) — no id param
-    (void)teamRepository->Update(team);
+    (void)teamRepository->Update(team); // IRepository::Update(const Type&)
     return true;
 }
 
 bool TeamDelegate::DeleteTeam(std::string_view id) {
-    // 1) Check existence
-    if (teamRepository->ReadById(std::string{id}) == nullptr) {
-        return false;
+    const std::string key{id}; // ensure exact type match with repository
+    // pre-check to preserve 404 semantics
+    if (teamRepository->ReadById(key) == nullptr) {
+        return false; // not found
     }
-    // 2) IRepository::Delete(const Id&) returns void
-    teamRepository->Delete(id);
-    return true;
+    // perform delete
+    teamRepository->Delete(key);
+    // post-check: make sure it is really gone
+    return teamRepository->ReadById(key) == nullptr;
 }
+
+
+
