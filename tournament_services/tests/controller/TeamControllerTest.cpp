@@ -5,13 +5,9 @@
 #include "domain/Team.hpp"
 #include "delegate/ITeamDelegate.hpp"
 #include "controller/TeamController.hpp"
-
-class TeamDelegateMock : public ITeamDelegate {
-    public:
-    MOCK_METHOD(std::shared_ptr<domain::Team>, GetTeam, (const std::string_view id), (override));
-    MOCK_METHOD(std::vector<std::shared_ptr<domain::Team>>, GetAllTeams, (), (override));
-    MOCK_METHOD(std::string_view, SaveTeam, (const domain::Team&), (override));
-};
+#include "../mocks/TeamDelegateMock.hpp"
+         // o TournamentDelegateMock.hpp
+// ...
 
 class TeamControllerTest : public ::testing::Test{
 protected:
