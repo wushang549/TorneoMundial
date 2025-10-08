@@ -1,6 +1,6 @@
 #pragma once
 #include <gmock/gmock.h>
-#include "delegate/ITournamentDelegate.hpp" // tu interfaz real
+#include "delegate/ITournamentDelegate.hpp"
 
 class TournamentDelegateMock : public ITournamentDelegate {
 public:
