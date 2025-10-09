@@ -4,11 +4,12 @@ project(tournament_tests)
 set(TEST_SOURCES
         controller/TeamControllerTest.cpp
         controller/TournamentControllerTest.cpp
-        delegate/TeamDelegateTest.cpp          # tests del delegate
-        ../src/controller/TeamController.cpp   # SUT controllers
+        delegate/TeamDelegateTest.cpp
+        delegate/TournamentDelegateTest.cpp           # <-- este nuevo
+        ../src/controller/TeamController.cpp
         ../src/controller/TournamentController.cpp
-        ../src/delegate/TeamDelegate.cpp       # ✅ SUT: TeamDelegate (faltaba)
-        # mocks/TeamRepositoryMock.h           # (opcional: los headers no es necesario listarlos)
+        ../src/delegate/TeamDelegate.cpp
+        ../src/delegate/TournamentDelegate.cpp        # <-- SUT TournamentDelegate
 )
 
 find_package(GTest CONFIG REQUIRED)
@@ -20,10 +21,10 @@ find_package(GTest CONFIG REQUIRED)
 add_executable(${PROJECT_NAME}_runner ${TEST_SOURCES})
 
 target_include_directories(${PROJECT_NAME}_runner PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}             # tests/
-        ${CMAKE_CURRENT_SOURCE_DIR}/mocks       # tests/mocks/
-        ${CMAKE_CURRENT_SOURCE_DIR}/../include  # tournament_services/include
-        ${CMAKE_SOURCE_DIR}/tournament_common/include  # ✅ para "persistence/repository/IRepository.hpp"
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/mocks
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include
+        ${CMAKE_SOURCE_DIR}/tournament_common/include
 )
 
 target_link_libraries(${PROJECT_NAME}_runner PRIVATE
