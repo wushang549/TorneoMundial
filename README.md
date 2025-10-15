@@ -9,3 +9,4 @@ activemq
 ````
 podman run -d --replace --name artemis --network development -p 61616:61616 -p 8161:8161 -p 5672:5672  apache/activemq-classic:6.1.7
 ````
+Test trigger auto build
