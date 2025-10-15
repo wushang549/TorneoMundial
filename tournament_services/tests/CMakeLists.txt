@@ -9,7 +9,8 @@ set(TEST_SOURCES
         ../src/controller/TeamController.cpp
         ../src/controller/TournamentController.cpp
         ../src/delegate/TeamDelegate.cpp
-        ../src/delegate/TournamentDelegate.cpp        # <-- SUT TournamentDelegate
+        ../src/delegate/TournamentDelegate.cpp
+        # <-- SUT TournamentDelegate
 )
 
 find_package(GTest CONFIG REQUIRED)
