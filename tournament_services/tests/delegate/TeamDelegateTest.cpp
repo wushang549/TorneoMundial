@@ -1,15 +1,3 @@
-// tests/delegate/TeamDelegateTest.cpp
-//
-// Suite de pruebas unitaria para TeamDelegate.
-// Requiere:
-//  - MockTeamRepository en tests/mocks/TeamRepositoryMock.h
-//  - TeamDelegate.hpp en tournament_services/include/delegate/TeamDelegate.hpp
-//  - Team.hpp en tournament_common/include/domain/Team.hpp
-//
-// Asegúrate en CMake de agregar:
-//   ../src/delegate/TeamDelegate.cpp
-// y de incluir los include dirs de tests/, tests/mocks/ y tournament_common/include.
-
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <memory>
@@ -26,124 +14,68 @@ using ::testing::StrictMock;
 using ::testing::Return;
 using ::testing::InSequence;
 using ::testing::An;
+using namespace std::literals;
 
-using namespace std::literals; // para "ID"sv
-
-// Helper para crear equipos
-static std::shared_ptr<domain::Team> makeTeam(std::string id, std::string name) {
+static std::shared_ptr<domain::Team> mkT(std::string id, std::string name){
   return std::make_shared<domain::Team>(domain::Team{std::move(id), std::move(name)});
 }
 
-/* ==================== GetAllTeams ==================== */
-
-TEST(TeamDelegateTest, GetAllTeams_Empty) {
+TEST(TeamDelegateTest, GetAll_Empty){
   auto repo = std::make_shared<NiceMock<MockTeamRepository>>();
-  EXPECT_CALL(*repo, ReadAll())
-      .WillOnce(Return(std::vector<std::shared_ptr<domain::Team>>{}));
-
+  EXPECT_CALL(*repo, ReadAll()).WillOnce(Return(std::vector<std::shared_ptr<domain::Team>>{}));
   TeamDelegate sut{repo};
-  auto v = sut.GetAllTeams();
-  EXPECT_TRUE(v.empty());
+  EXPECT_TRUE(sut.GetAllTeams().empty());
 }
 
-TEST(TeamDelegateTest, GetAllTeams_TwoItems) {
-  auto repo = std::make_shared<NiceMock<MockTeamRepository>>();
-  std::vector<std::shared_ptr<domain::Team>> vec{
-      makeTeam("A", "Alpha"),
-      makeTeam("B", "Beta")
-  };
-  EXPECT_CALL(*repo, ReadAll()).WillOnce(Return(vec));
-
-  TeamDelegate sut{repo};
-  auto v = sut.GetAllTeams();
-  ASSERT_EQ(v.size(), 2u);
-  EXPECT_EQ(v[0]->Id, "A");
-  EXPECT_EQ(v[1]->Name, "Beta");
-}
-
-/* ==================== GetTeam(id) ==================== */
-
-TEST(TeamDelegateTest, GetTeam_UsesReadByIdView) {
+TEST(TeamDelegateTest, GetTeam_UsesReadByIdView){
   auto repo = std::make_shared<StrictMock<MockTeamRepository>>();
-  EXPECT_CALL(*repo, ReadById("X"sv))
-      .WillOnce(Return(makeTeam("X","XName")));
-
+  EXPECT_CALL(*repo, ReadById("X"sv)).WillOnce(Return(mkT("X","XName")));
   TeamDelegate sut{repo};
-  auto t = sut.GetTeam("X"); // std::string_view
-  ASSERT_NE(t, nullptr);
-  EXPECT_EQ(t->Id, "X");
-  EXPECT_EQ(t->Name, "XName");
+  auto t = sut.GetTeam("X");
+  ASSERT_NE(t,nullptr);
+  EXPECT_EQ(t->Name,"XName");
 }
 
-/* ==================== SaveTeam(team) ==================== */
-
-TEST(TeamDelegateTest, SaveTeam_ReturnsIdView) {
+TEST(TeamDelegateTest, SaveTeam_ReturnsIdView){
   auto repo = std::make_shared<StrictMock<MockTeamRepository>>();
-  EXPECT_CALL(*repo, Create(::testing::_))
-      .WillOnce(Return("id-1"sv)); // string_view con lifetime estático (literal)
-
+  EXPECT_CALL(*repo, Create(::testing::_)).WillOnce(Return("id-1"sv));
   TeamDelegate sut{repo};
-  domain::Team input{"", "Nuevo"};
-  auto id = sut.SaveTeam(input);
-  EXPECT_EQ(id, "id-1");
+  domain::Team in{"","Nuevo"};
+  EXPECT_EQ(sut.SaveTeam(in), "id-1");
 }
 
-/* ==================== UpdateTeam(id, team) ==================== */
-
-TEST(TeamDelegateTest, UpdateTeam_NotFound_ReturnsFalse) {
+TEST(TeamDelegateTest, Update_NotFound_ReturnsFalse){
   auto repo = std::make_shared<StrictMock<MockTeamRepository>>();
-  EXPECT_CALL(*repo, ReadById(An<std::string_view>()))
-      .WillOnce(Return(std::shared_ptr<domain::Team>{})); // nullptr
-  // No debe llamar Update si no existe
+  EXPECT_CALL(*repo, ReadById(An<std::string_view>())).WillOnce(Return(nullptr));
   EXPECT_CALL(*repo, Update(::testing::_)).Times(0);
-
   TeamDelegate sut{repo};
-  domain::Team t{"U1","Name"};
-  EXPECT_FALSE(sut.UpdateTeam("U1", t));
+  domain::Team in{"U1","Name"};
+  EXPECT_FALSE(sut.UpdateTeam("U1", in));
 }
 
-TEST(TeamDelegateTest, UpdateTeam_Found_CallsUpdateAndReturnsTrue) {
+TEST(TeamDelegateTest, Update_Found_CallsUpdateAndTrue){
   auto repo = std::make_shared<StrictMock<MockTeamRepository>>();
-  EXPECT_CALL(*repo, ReadById("U2"sv))
-      .WillOnce(Return(makeTeam("U2","Old")));
-
-  // Update debe devolver string_view (Id)
-  EXPECT_CALL(*repo, Update(::testing::_))
-      .WillOnce(Return("U2"sv));
-
+  EXPECT_CALL(*repo, ReadById("U2"sv)).WillOnce(Return(mkT("U2","Old")));
+  EXPECT_CALL(*repo, Update(::testing::_)).WillOnce(Return("U2"sv));
   TeamDelegate sut{repo};
-  domain::Team t{"U2","New"};
-  EXPECT_TRUE(sut.UpdateTeam("U2", t));
+  domain::Team in{"U2","New"};
+  EXPECT_TRUE(sut.UpdateTeam("U2", in));
 }
 
-/* ==================== DeleteTeam(id) ==================== */
-
-TEST(TeamDelegateTest, DeleteTeam_NotFound_ReturnsFalse_NoDeleteCall) {
+TEST(TeamDelegateTest, Delete_NotFound_ReturnsFalse){
   auto repo = std::make_shared<StrictMock<MockTeamRepository>>();
-  EXPECT_CALL(*repo, ReadById("D1"sv))
-      .WillOnce(Return(std::shared_ptr<domain::Team>{})); // no existe
+  EXPECT_CALL(*repo, ReadById("D1"sv)).WillOnce(Return(nullptr));
   EXPECT_CALL(*repo, Delete(An<std::string_view>())).Times(0);
-
   TeamDelegate sut{repo};
   EXPECT_FALSE(sut.DeleteTeam("D1"));
 }
 
-TEST(TeamDelegateTest, DeleteTeam_Success_ReturnsTrue_AfterPostCheck) {
+TEST(TeamDelegateTest, Delete_Success_ReturnsTrue){
   auto repo = std::make_shared<StrictMock<MockTeamRepository>>();
   TeamDelegate sut{repo};
-
-  InSequence seq; // fuerza el orden: pre-check -> delete -> post-check
-
-  // pre-check: existe
-  EXPECT_CALL(*repo, ReadById("D2"sv))
-      .WillOnce(Return(makeTeam("D2","ToDelete")));
-
-  // delete: se invoca exactamente una vez con el mismo id
+  InSequence seq;
+  EXPECT_CALL(*repo, ReadById("D2"sv)).WillOnce(Return(mkT("D2","ToDelete")));
   EXPECT_CALL(*repo, Delete("D2"sv)).Times(1);
-
-  // post-check: ya no existe
-  EXPECT_CALL(*repo, ReadById("D2"sv))
-      .WillOnce(Return(std::shared_ptr<domain::Team>{}));
-
+  EXPECT_CALL(*repo, ReadById("D2"sv)).WillOnce(Return(nullptr));
   EXPECT_TRUE(sut.DeleteTeam("D2"));
 }

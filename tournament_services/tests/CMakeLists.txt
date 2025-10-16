@@ -10,6 +10,7 @@ set(TEST_SOURCES
         ../src/controller/TournamentController.cpp
         ../src/delegate/TeamDelegate.cpp
         ../src/delegate/TournamentDelegate.cpp
+        mocks/GroupRepositoryMock.hpp
         # <-- SUT TournamentDelegate
 )
 

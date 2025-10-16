@@ -1,6 +1,9 @@
 #pragma once
 #include <gmock/gmock.h>
+#include <memory>
+#include <string_view>
 #include "delegate/ITeamDelegate.hpp"
+#include "domain/Team.hpp"
 
 class TeamDelegateMock : public ITeamDelegate {
 public:

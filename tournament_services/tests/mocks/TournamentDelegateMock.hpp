@@ -1,6 +1,10 @@
 #pragma once
 #include <gmock/gmock.h>
+#include <memory>
+#include <string>
+#include <vector>
 #include "delegate/ITournamentDelegate.hpp"
+#include "domain/Tournament.hpp"
 
 class TournamentDelegateMock : public ITournamentDelegate {
 public:

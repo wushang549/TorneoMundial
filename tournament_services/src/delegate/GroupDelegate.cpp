@@ -1,7 +1,7 @@
+//GroupDelegate.cpp
 #include "delegate/GroupDelegate.hpp"
 #include <algorithm>
 #include <stdexcept>
-
 // ---------------- ctor ----------------
 GroupDelegate::GroupDelegate(const std::shared_ptr<TournamentRepository>& tournamentRepository,
                              const std::shared_ptr<IGroupRepository>& groupRepository,
