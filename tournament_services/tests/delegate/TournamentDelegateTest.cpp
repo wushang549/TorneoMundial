@@ -21,6 +21,26 @@ static std::shared_ptr<domain::Tournament> mkT(
   p->Id() = id;
   return p;
 }
+TEST(TournamentDelegateTest, UpdateTournament_RepoThrows_ReturnsFalse) {
+    auto repo = std::make_shared<StrictMock<TournamentRepositoryMock>>();
+    TournamentDelegate sut{repo};
+
+    EXPECT_CALL(*repo, Update(::testing::_))
+        .WillOnce(::testing::Throw(std::runtime_error("db")));
+
+    domain::Tournament t{"Liga", domain::TournamentFormat{1,4,domain::TournamentType::NFL}};
+    EXPECT_FALSE(sut.UpdateTournament("T1", t));
+}
+
+TEST(TournamentDelegateTest, DeleteTournament_RepoThrows_ReturnsFalse) {
+    auto repo = std::make_shared<StrictMock<TournamentRepositoryMock>>();
+    TournamentDelegate sut{repo};
+
+    EXPECT_CALL(*repo, Delete("T2"))
+        .WillOnce(Invoke([](std::string){ throw std::runtime_error("db"); }));
+
+    EXPECT_FALSE(sut.DeleteTournament("T2"));
+}
 
 TEST(TournamentDelegateTest, Create_ReturnsRepoId){
   auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();

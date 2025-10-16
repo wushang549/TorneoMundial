@@ -5,6 +5,7 @@
 #include "controller/TeamController.hpp"
 #include "mocks/TeamDelegateMock.hpp"
 
+using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::StrictMock;
 using ::testing::Return;
@@ -15,6 +16,78 @@ using namespace std::literals;
 static crow::request make_req(const std::string& body) { crow::request r; r.body = body; return r; }
 static std::shared_ptr<domain::Team> mkTeam(std::string id, std::string name) {
   return std::make_shared<domain::Team>(domain::Team{std::move(id), std::move(name)});
+}
+// SaveTeam_NameDuplicate_Returns409
+TEST(TeamControllerTest, SaveTeam_NameDuplicate_Returns409) {
+  auto mock = std::make_shared<StrictMock<TeamDelegateMock>>();
+  TeamController ctl{mock};
+
+  // repo ya tiene "Eagles"
+  EXPECT_CALL(*mock, GetAllTeams())
+      .WillOnce(Return(std::vector{
+         std::make_shared<domain::Team>(domain::Team{"A1","Eagles"})
+      }));
+
+  crow::request req;
+  req.body = R"({"name":"Eagles"})";
+  auto res = ctl.SaveTeam(req);
+  EXPECT_EQ(res.code, crow::CONFLICT);
+  EXPECT_THAT(std::string(res.body), ::testing::HasSubstr("already exists"));
+}
+
+// SaveTeam_ClientIdInvalid_Returns400
+TEST(TeamControllerTest, SaveTeam_ClientIdInvalid_Returns400) {
+  auto mock = std::make_shared<StrictMock<TeamDelegateMock>>();
+  TeamController ctl{mock};
+
+  EXPECT_CALL(*mock, GetAllTeams()).WillOnce(Return(std::vector<std::shared_ptr<domain::Team>>{}));
+
+  crow::request req;
+  req.body = R"({"id":"bad id con espacios", "name":"Jets"})"; // no cumple tu regex ID_VALUE
+  auto res = ctl.SaveTeam(req);
+  EXPECT_EQ(res.code, crow::BAD_REQUEST);
+}
+
+// SaveTeam_Success_NoClientId_SetsLocationAndJson
+TEST(TeamControllerTest, SaveTeam_Success_NoClientId_SetsLocationAndJson) {
+  auto mock = std::make_shared<StrictMock<TeamDelegateMock>>();
+  TeamController ctl{mock};
+
+  EXPECT_CALL(*mock, GetAllTeams()).WillOnce(Return(std::vector<std::shared_ptr<domain::Team>>{}));
+  EXPECT_CALL(*mock, SaveTeam(::testing::_)).WillOnce(Return(std::string_view{"GEN-123"}));
+
+  crow::request req;
+  req.body = R"({"name":"Bears"})";
+  auto res = ctl.SaveTeam(req);
+  EXPECT_EQ(res.code, crow::CREATED);
+  EXPECT_EQ(res.get_header_value("location"), "GEN-123");
+  EXPECT_EQ(res.get_header_value("content-type"), "application/json");
+  EXPECT_THAT(std::string(res.body), ::testing::HasSubstr(R"("id":"GEN-123")"));
+}
+
+// UpdateTeam_NotFound_Returns404
+TEST(TeamControllerTest, UpdateTeam_NotFound_Returns404) {
+  auto mock = std::make_shared<StrictMock<TeamDelegateMock>>();
+  TeamController ctl{mock};
+
+  EXPECT_CALL(*mock, UpdateTeam("T1", ::testing::_)).WillOnce(Return(false));
+
+  crow::request req; req.body = R"({"name":"NewName"})";
+  auto res = ctl.UpdateTeam(req, "T1");
+  EXPECT_EQ(res.code, crow::NOT_FOUND);
+}
+
+// DeleteTeam_Exception_Returns500
+TEST(TeamControllerTest, DeleteTeam_Exception_Returns500) {
+  auto mock = std::make_shared<StrictMock<TeamDelegateMock>>();
+  TeamController ctl{mock};
+
+    EXPECT_CALL(*mock, DeleteTeam("T1"sv))
+       .WillOnce(::testing::Invoke([](std::string_view) -> bool {
+           throw std::runtime_error("db");
+       }));
+  auto res = ctl.DeleteTeam("T1");
+  EXPECT_EQ(res.code, crow::INTERNAL_SERVER_ERROR);
 }
 
 /* ============ GET /teams/{id} ============ */

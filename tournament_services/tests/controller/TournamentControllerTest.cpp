@@ -4,7 +4,8 @@
 
 #include "controller/TournamentController.hpp"
 #include "mocks/TournamentDelegateMock.hpp"
-
+#include "mocks/GroupRepositoryMock.hpp"
+using namespace std::literals;
 using ::testing::NiceMock;
 using ::testing::StrictMock;
 using ::testing::Return;
@@ -20,6 +21,45 @@ static std::shared_ptr<domain::Tournament> mkT(
   auto p = std::make_shared<domain::Tournament>(name, fmt);
   p->Id() = id;
   return p;
+}
+// CreateTournament_NameDuplicate_Returns409
+TEST(TournamentControllerTest, Create_NameDuplicate_Returns409) {
+    auto del = std::make_shared<StrictMock<TournamentDelegateMock>>();
+    auto grepo = std::make_shared<NiceMock<GroupRepositoryMock>>();
+    TournamentController ctl{del, grepo};
+
+    auto t = std::make_shared<domain::Tournament>(
+        domain::Tournament{"NFL 2025", domain::TournamentFormat{2,4,domain::TournamentType::NFL}});
+    t->Id() = "T1";
+    EXPECT_CALL(*del, ReadAll()).WillOnce(Return(std::vector{t}));
+
+    crow::request req; req.body = R"({"name":"NFL 2025","format":{"numberOfGroups":2,"maxTeamsPerGroup":4,"type":"NFL"}})";
+    auto res = ctl.CreateTournament(req);
+    EXPECT_EQ(res.code, crow::CONFLICT);
+}
+
+// ReadById_EmbedsGroups
+TEST(TournamentControllerTest, ReadById_EmbedsGroups) {
+    auto del = std::make_shared<StrictMock<TournamentDelegateMock>>();
+    auto grepo = std::make_shared<StrictMock<GroupRepositoryMock>>();
+    TournamentController ctl{del, grepo};
+
+    auto t = std::make_shared<domain::Tournament>(
+        domain::Tournament{"Copa", domain::TournamentFormat{1,3,domain::TournamentType::ROUND_ROBIN}});
+    t->Id() = "T9";
+
+    EXPECT_CALL(*del, ReadById("T9")).WillOnce(Return(t));
+
+    auto g = std::make_shared<domain::Group>(domain::Group{"A", "G1"}); // ctor: name, id
+    g->TournamentId() = "T9";                                           // set tournamentId
+
+    EXPECT_CALL(*grepo, FindByTournamentId("T9"sv))
+        .WillOnce(Return(std::vector{ g }));
+
+    auto res = ctl.ReadById("T9");
+    EXPECT_EQ(res.code, crow::OK);
+    EXPECT_EQ(res.get_header_value("content-type"), "application/json");
+    EXPECT_THAT(std::string(res.body), ::testing::HasSubstr(R"("groups")"));
 }
 
 /* ============ POST /tournaments (CreateTournament) ============ */
