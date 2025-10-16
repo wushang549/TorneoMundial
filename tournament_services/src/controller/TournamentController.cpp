@@ -1,68 +1,66 @@
 #include "controller/TournamentController.hpp"
 #include "configuration/RouteDefinition.hpp"
-#include <utility>
+#include "domain/Utilities.hpp"   // to_json/from_json para Tournament y Groups
+
+#include <algorithm>
 #include <sstream>
 
-// enum helpers
-static std::string type_to_string(domain::TournamentType t) {
-    return (t == domain::TournamentType::NFL) ? "NFL" : "ROUND_ROBIN";
-}
-static domain::TournamentType string_to_type(const std::string& s) {
-    return (s == "NFL") ? domain::TournamentType::NFL : domain::TournamentType::ROUND_ROBIN;
-}
+#define JSON_CONTENT_TYPE "application/json"
+#define CONTENT_TYPE_HEADER "content-type"
 
-// tiny escaper
+// Helpers
 static std::string esc(const std::string& s) {
     std::string out; out.reserve(s.size() + 8);
     for (char c : s) {
-        if (c == '\\' || c == '\"') { out.push_back('\\'); out.push_back(c); }
+        if (c == '"' || c == '\\') { out.push_back('\\'); out.push_back(c); }
+        else if (c == '\n') out += "\\n";
         else out.push_back(c);
     }
     return out;
 }
 
-// body -> domain
-static domain::Tournament parse_tournament_body(const nlohmann::json& j) {
-    const std::string name = j.value("name", "");
-    const auto& jf = j.at("format");
-    const int ng   = jf.value("numberOfGroups", 1);
-    const int mtg  = jf.value("maxTeamsPerGroup", 16);
-    const std::string ts = jf.value("type", "ROUND_ROBIN");
-    domain::TournamentFormat fmt{ng, mtg, string_to_type(ts)};
-    return domain::Tournament{name, fmt};
-}
-
-// domain -> json text
 static std::string tournament_to_json_string(const domain::Tournament& t) {
-    std::string s;
-    s.reserve(128);
-    s += "{\"id\":\"";    s += esc(t.Id());   s += "\"";
-    s += ",\"name\":\"";  s += esc(t.Name()); s += "\"";
-    s += ",\"format\":{";
-    s += "\"numberOfGroups\":";   s += std::to_string(t.Format().NumberOfGroups());
-    s += ",\"maxTeamsPerGroup\":"; s += std::to_string(t.Format().MaxTeamsPerGroup());
-    s += ",\"type\":\"";  s += type_to_string(t.Format().Type()); s += "\"}";
-    s += "}";
-    return s;
+    nlohmann::json j = t; // Utilities.hpp
+    return j.dump();
 }
 
-TournamentController::TournamentController(std::shared_ptr<ITournamentDelegate> tournament)
-    : tournamentDelegate(std::move(tournament)) {}
+static domain::Tournament parse_tournament_body(const nlohmann::json& body) {
+    domain::Tournament t;
+    t = body.get<domain::Tournament>(); // Utilities.hpp
+    return t;
+}
 
-// POST /tournaments
+// POST /tournaments  (con 409 por nombre duplicado)
 crow::response TournamentController::CreateTournament(const crow::request& request) {
     if (!nlohmann::json::accept(request.body)) {
         return crow::response{crow::BAD_REQUEST, "Invalid JSON body"};
     }
     try {
         nlohmann::json body = nlohmann::json::parse(request.body);
+
+        // Validación de nombre
+        if (!body.contains("name") || !body["name"].is_string()) {
+            return crow::response{crow::BAD_REQUEST, "missing 'name'"};
+        }
+        std::string incomingName = body["name"].get<std::string>();
+
+        // 409 si name ya existe
+        auto all = tournamentDelegate->ReadAll();
+        auto dup = std::find_if(all.begin(), all.end(),
+                                [&](const std::shared_ptr<domain::Tournament>& x){
+                                    return x && x->Name() == incomingName;
+                                });
+        if (dup != all.end()) {
+            return crow::response{crow::CONFLICT, "tournament name already exists"};
+        }
+
         domain::Tournament t = parse_tournament_body(body);
         const std::string id = tournamentDelegate->CreateTournament(std::make_shared<domain::Tournament>(t));
 
         crow::response res;
         res.code = crow::CREATED;
         res.add_header("location", id);
-        res.add_header("content-type", "application/json");
+        res.add_header(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE);
         res.write(std::string("{\"id\":\"") + esc(id) + "\"}");
         return res;
     } catch (const std::exception& e) {
@@ -74,32 +72,30 @@ crow::response TournamentController::CreateTournament(const crow::request& reque
 crow::response TournamentController::ReadAll() {
     try {
         auto items = tournamentDelegate->ReadAll();
-        std::string payload;
-        payload.reserve(items.size() * 128 + 2);
-        payload.push_back('[');
-        bool first = true;
-        for (const auto& it : items) {
-            if (!first) payload.push_back(',');
-            first = false;
-            payload += tournament_to_json_string(*it);
-        }
-        payload.push_back(']');
-        crow::response res{crow::OK, payload};
-        res.add_header("content-type", "application/json");
+        nlohmann::json arr = nlohmann::json::array();
+        for (const auto& it : items) if (it) arr.push_back(*it);
+        crow::response res{crow::OK, arr.dump()};
+        res.add_header(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE);
         return res;
     } catch (const std::exception& e) {
         return crow::response{crow::INTERNAL_SERVER_ERROR, std::string("read all failed: ") + e.what()};
     }
 }
 
-// GET /tournaments/{id}
+// GET /tournaments/{id}  (embebido: groups + teams)
 crow::response TournamentController::ReadById(const std::string& id) {
     try {
         auto t = tournamentDelegate->ReadById(id);
         if (!t) return crow::response{crow::NOT_FOUND, "tournament not found"};
-        std::string body = tournament_to_json_string(*t);
-        crow::response res{crow::OK, body};
-        res.add_header("content-type", "application/json");
+
+        nlohmann::json body = *t; // id, name, format
+        // Embebido de grupos:
+        auto groups = groupRepository->FindByTournamentId(id);
+        // Utilities.hpp ya tiene to_json para vector<shared_ptr<Group>>
+        body["groups"] = groups;
+
+        crow::response res{crow::OK, body.dump()};
+        res.add_header(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE);
         return res;
     } catch (const std::exception& e) {
         return crow::response{crow::INTERNAL_SERVER_ERROR, std::string("read by id failed: ") + e.what()};
@@ -112,9 +108,8 @@ crow::response TournamentController::UpdateTournament(const crow::request& reque
         return crow::response{crow::BAD_REQUEST, "Invalid JSON body"};
     }
     try {
-        nlohmann::json body = nlohmann::json::parse(request.body);
+        auto body = nlohmann::json::parse(request.body);
         domain::Tournament t = parse_tournament_body(body);
-        t.Id() = id;
 
         if (!tournamentDelegate->UpdateTournament(id, t)) {
             return crow::response{crow::NOT_FOUND, "tournament not found"};
@@ -137,7 +132,7 @@ crow::response TournamentController::DeleteTournament(const std::string& id) {
     }
 }
 
-// Route registrations
+// Rutas
 REGISTER_ROUTE(TournamentController, ReadAll,          "/tournaments",              "GET"_method)
 REGISTER_ROUTE(TournamentController, ReadById,         "/tournaments/<string>",     "GET"_method)
 REGISTER_ROUTE(TournamentController, CreateTournament, "/tournaments",              "POST"_method)

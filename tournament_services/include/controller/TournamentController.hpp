@@ -3,13 +3,18 @@
 #include <string>
 #include <crow.h>
 #include <nlohmann/json.hpp>
+
 #include "delegate/ITournamentDelegate.hpp"
+#include "persistence/repository/IGroupRepository.hpp"   // 👈 para embebidos (groups)
 
 class TournamentController {
     std::shared_ptr<ITournamentDelegate> tournamentDelegate;
+    std::shared_ptr<IGroupRepository>     groupRepository; // 👈 nuevo dep. para embebido
 
 public:
-    explicit TournamentController(std::shared_ptr<ITournamentDelegate> tournament);
+    explicit TournamentController(std::shared_ptr<ITournamentDelegate> tournament,
+                                  std::shared_ptr<IGroupRepository> groupRepo)
+        : tournamentDelegate(std::move(tournament)), groupRepository(std::move(groupRepo)) {}
 
     crow::response CreateTournament(const crow::request& request);                   // POST /tournaments
     crow::response ReadAll();                                                       // GET  /tournaments
