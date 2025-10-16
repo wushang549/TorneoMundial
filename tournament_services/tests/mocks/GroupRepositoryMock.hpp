@@ -9,6 +9,7 @@
 #include "domain/Group.hpp"
 #include "domain/Team.hpp"
 
+// Mock que respeta exactamente las firmas usadas en GroupRepository.cpp
 class GroupRepositoryMock : public IGroupRepository {
 public:
     MOCK_METHOD(std::string, Create, (const domain::Group&), (override));
