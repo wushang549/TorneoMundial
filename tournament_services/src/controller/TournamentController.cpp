@@ -91,7 +91,6 @@ crow::response TournamentController::ReadById(const std::string& id) {
         nlohmann::json body = *t; // id, name, format
         // Embebido de grupos:
         auto groups = groupRepository->FindByTournamentId(id);
-        // Utilities.hpp ya tiene to_json para vector<shared_ptr<Group>>
         body["groups"] = groups;
 
         crow::response res{crow::OK, body.dump()};
