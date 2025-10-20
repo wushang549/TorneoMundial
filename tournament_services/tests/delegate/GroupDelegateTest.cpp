@@ -83,7 +83,7 @@ TEST(GroupDelegateTest, CreateGroup_DuplicateGroup_ReturnsError) {
   EXPECT_CALL(*grepo, Create(::testing::_))
       .WillOnce(Invoke([](const domain::Group& g){
         EXPECT_EQ(g.Name(), "DuplicateGroup");
-        throw std::runtime_error("Group already exists");
+        return std::string{}; // simulate failure in repository
       }));
 
   GroupDelegate sut{trepo, grepo, teamr};
@@ -105,7 +105,7 @@ TEST(GroupDelegateTest, CreateGroup_MaxTeamsExceeded_ReturnsError) {
   auto grepo = std::make_shared<StrictMock<GroupRepositoryMock>>();
   auto teamr = std::make_shared<StrictMock<TeamRepositoryMock>>();
 
-  auto t = mkT("T4","Tour",2,2,domain::TournamentType::WORLD_CUP);
+  auto t = mkT("T4","Tour",2,2,domain::TournamentType::NFL);
   EXPECT_CALL(*trepo, ReadById("T4")).WillOnce(Return(t));
   EXPECT_CALL(*teamr, ReadById(::testing::_)).WillRepeatedly(Return(mkTeam("A","A"))); 
 
@@ -115,7 +115,7 @@ TEST(GroupDelegateTest, CreateGroup_MaxTeamsExceeded_ReturnsError) {
   g.Teams() = {{"E1","T1"},{"E2","T2"},{"E3","T3"}}; // supera el límite (2)
   auto r = sut.CreateGroup("T4", g);
   ASSERT_FALSE(r.has_value());
-  EXPECT_NE(r.error().find("Failed"), std::string::npos);
+  EXPECT_EQ(r.error(), "Group at max capacity");
 }
 
 /* 
@@ -146,6 +146,8 @@ TEST(GroupDelegateTest, GetGroup_Ok) {
   auto grepo = std::make_shared<StrictMock<GroupRepositoryMock>>();
   auto teamr = std::make_shared<NiceMock<TeamRepositoryMock>>();
 
+  EXPECT_CALL(*trepo, ReadById("T1"))
+      .WillOnce(Return(mkT("T1","Tour",2,4,domain::TournamentType::NFL)));
   EXPECT_CALL(*grepo, FindByTournamentIdAndGroupId("T1"sv, "G1"sv))
       .WillOnce(Return(mkG("G1","Alpha","T1")));
 
@@ -165,6 +167,8 @@ TEST(GroupDelegateTest, GetGroup_NotFound_ReturnsError) {
   auto grepo = std::make_shared<StrictMock<GroupRepositoryMock>>();
   auto teamr = std::make_shared<NiceMock<TeamRepositoryMock>>();
 
+  EXPECT_CALL(*trepo, ReadById("T1"))
+      .WillOnce(Return(mkT("T1","Tour",2,4,domain::TournamentType::ROUND_ROBIN)));
   EXPECT_CALL(*grepo, FindByTournamentIdAndGroupId("T1"sv,"G404"sv))
       .WillOnce(Return(std::shared_ptr<domain::Group>{}));
 
