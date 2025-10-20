@@ -94,7 +94,7 @@ crow::response TeamController::SaveTeam(const crow::request& request) const {
 //PATCH con validacon de 404 (en caso de que no exista en la base de datos)
 crow::response TeamController::UpdateTeam(const crow::request& request,
                                           const std::string& teamId) const {
-    if (!std::regex_match(teamId, ID_VALUE)) {ss
+    if (!std::regex_match(teamId, ID_VALUE)) {
         return crow::response{crow::BAD_REQUEST, "Invalid ID format"};
     }
     if (!nlohmann::json::accept(request.body)) {
