@@ -14,6 +14,7 @@
 TeamController::TeamController(const std::shared_ptr<ITeamDelegate>& teamDelegate)
     : teamDelegate(teamDelegate) {}
 
+// Obtenemos el team por el ID
 crow::response TeamController::getTeam(const std::string& teamId) const {
     if (!std::regex_match(teamId, ID_VALUE)) {
         return crow::response{crow::BAD_REQUEST, "Invalid ID format"};
@@ -30,6 +31,7 @@ crow::response TeamController::getTeam(const std::string& teamId) const {
     return response;
 }
 
+//Obtenemos todos los teams por /teams
 crow::response TeamController::getAllTeams() const {
     nlohmann::json body = teamDelegate->GetAllTeams();
     crow::response response{crow::OK, body.dump()};
@@ -74,7 +76,6 @@ crow::response TeamController::SaveTeam(const crow::request& request) const {
 
     try {
         domain::Team team = body;
-        // Utilities.hpp (id opcional)
         auto createdId = teamDelegate->SaveTeam(team);
 
         std::string location = !clientId.empty() ? clientId : std::string(createdId);
@@ -82,7 +83,7 @@ crow::response TeamController::SaveTeam(const crow::request& request) const {
         crow::response res;
         res.code = crow::CREATED;
         res.add_header("location", location);
-        res.add_header(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE);              // 👈
+        res.add_header(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE);   
         res.write(nlohmann::json{{"id", location}}.dump());
         return res;
     } catch (const std::exception& e) {
@@ -90,6 +91,7 @@ crow::response TeamController::SaveTeam(const crow::request& request) const {
     }
 }
 
+//PATCH con validacon de 404 (en caso de que no exista en la base de datos)
 crow::response TeamController::UpdateTeam(const crow::request& request,
                                           const std::string& teamId) const {
     if (!std::regex_match(teamId, ID_VALUE)) {
@@ -102,15 +104,15 @@ crow::response TeamController::UpdateTeam(const crow::request& request,
     nlohmann::json body = nlohmann::json::parse(request.body);
 
     domain::Team team = body;  // id en body es opcional/ignorado
-    team.Id = teamId;          // 👈 usamos el id de la URL
+    team.Id = teamId;     
 
     const bool updated = teamDelegate->UpdateTeam(teamId, team);
     if (!updated) {
+        //equipo no encontrado 44
         return crow::response{crow::NOT_FOUND, "team not found"};
     }
     return crow::response{crow::NO_CONTENT}; // 204
 }
-
 
 crow::response TeamController::DeleteTeam(const std::string& teamId) const {
     if (!std::regex_match(teamId, ID_VALUE)) {

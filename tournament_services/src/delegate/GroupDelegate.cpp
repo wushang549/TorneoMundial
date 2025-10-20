@@ -1,7 +1,6 @@
 //GroupDelegate.cpp
 #include "delegate/GroupDelegate.hpp"
 #include <algorithm>
-#include <stdexcept>
 // ---------------- ctor ----------------
 GroupDelegate::GroupDelegate(const std::shared_ptr<TournamentRepository>& tournamentRepository,
                              const std::shared_ptr<IGroupRepository>& groupRepository,
@@ -21,41 +20,56 @@ GroupDelegate::CreateGroup(std::string_view tournamentId, const domain::Group& g
     domain::Group g = group;
     g.TournamentId() = tournament->Id();
 
+    const int maxPerGroup = tournament->Format().MaxTeamsPerGroup();
+    if (static_cast<int>(g.Teams().size()) > maxPerGroup) {
+        return std::unexpected("Group at max capacity");
+    }
+
     if (!g.Teams().empty()) {
         for (auto& t : g.Teams()) {
             auto team = teamRepository->ReadById(t.Id);
             if (!team) {
                 return std::unexpected("Team doesn't exist");
             }
+            if (groupRepository->FindByTournamentIdAndTeamId(tournament->Id(), t.Id)) {
+                return std::unexpected("Team " + t.Id + " already exists in tournament " + tournament->Id());
+            }
         }
     }
 
-    try {
-        auto id = groupRepository->Create(g);
-        return id;
-    } catch (const std::exception&) {
+    auto id = groupRepository->Create(g);
+    if (id.empty()) {
         return std::unexpected("Failed to create group");
     }
+
+    return id;
 }
 
 // ---------------- GetGroups ----------------
 std::expected<std::vector<std::shared_ptr<domain::Group>>, std::string>
 GroupDelegate::GetGroups(std::string_view tournamentId) {
-    try {
-        return groupRepository->FindByTournamentId(tournamentId);
-    } catch (const std::exception&) {
-        return std::unexpected("Error when reading to DB");
+    auto tournament = tournamentRepository->ReadById(std::string(tournamentId));
+    if (!tournament) {
+        return std::unexpected("Tournament doesn't exist");
     }
+
+    return groupRepository->FindByTournamentId(tournamentId);
 }
 
 // ---------------- GetGroup ----------------
 std::expected<std::shared_ptr<domain::Group>, std::string>
 GroupDelegate::GetGroup(std::string_view tournamentId, std::string_view groupId) {
-    try {
-        return groupRepository->FindByTournamentIdAndGroupId(tournamentId, groupId);
-    } catch (const std::exception&) {
-        return std::unexpected("Error when reading to DB");
+    auto tournament = tournamentRepository->ReadById(std::string(tournamentId));
+    if (!tournament) {
+        return std::unexpected("Tournament doesn't exist");
     }
+
+    auto group = groupRepository->FindByTournamentIdAndGroupId(tournamentId, groupId);
+    if (!group) {
+        return std::unexpected("Group doesn't exist");
+    }
+
+    return group;
 }
 
 // ---------------- UpdateGroup (rename) ----------------
@@ -79,14 +93,14 @@ GroupDelegate::UpdateGroup(std::string_view tournamentId, const domain::Group& g
     }
 
     // Actualizar nombre
-    try {
-        domain::Group toUpdate = *current;
-        toUpdate.Name() = group.Name();
-        groupRepository->Update(toUpdate);     // asumiendo método Update(group) en repo
-        return {};
-    } catch (const std::exception& ex) {
-        return std::unexpected(std::string("Failed to update group: ") + ex.what());
+    domain::Group toUpdate = *current;
+    toUpdate.Name() = group.Name();
+    auto updatedId = groupRepository->Update(toUpdate);
+    if (updatedId.empty()) {
+        return std::unexpected("Failed to update group");
     }
+
+    return {};
 }
 
 // ---------------- RemoveGroup ----------------
@@ -102,12 +116,8 @@ GroupDelegate::RemoveGroup(std::string_view tournamentId, std::string_view group
         return std::unexpected("Group doesn't exist");
     }
 
-    try {
-        groupRepository->Delete(std::string(groupId)); // asumiendo Delete(id) en repo
-        return {};
-    } catch (const std::exception& ex) {
-        return std::unexpected(std::string("Failed to delete group: ") + ex.what());
-    }
+    groupRepository->Delete(std::string(groupId));
+    return {};
 }
 
 // ---------------- UpdateTeams (batch) ----------------
@@ -140,16 +150,12 @@ GroupDelegate::UpdateTeams(std::string_view tournamentId,
         }
     }
 
-    try {
-        for (const auto& team : teams) {
-            auto persistedTeam = teamRepository->ReadById(team.Id);
-            if (!persistedTeam) {
-                return std::unexpected("Team " + team.Id + " doesn't exist");
-            }
-            groupRepository->UpdateGroupAddTeam(std::string(groupId), persistedTeam);
+    for (const auto& team : teams) {
+        auto persistedTeam = teamRepository->ReadById(team.Id);
+        if (!persistedTeam) {
+            return std::unexpected("Team " + team.Id + " doesn't exist");
         }
-    } catch (const std::exception& ex) {
-        return std::unexpected(std::string("Failed to update teams: ") + ex.what());
+        groupRepository->UpdateGroupAddTeam(std::string(groupId), persistedTeam);
     }
 
     return {};
@@ -186,11 +192,7 @@ GroupDelegate::AddTeamToGroup(std::string_view tournamentId,
         return std::unexpected("Group is full");
     }
 
-    try {
-        groupRepository->UpdateGroupAddTeam(std::string(groupId), team);
-    } catch (const std::exception& ex) {
-        return std::unexpected(std::string("Failed to add team: ") + ex.what());
-    }
+    groupRepository->UpdateGroupAddTeam(std::string(groupId), team);
 
     return {};
 }
