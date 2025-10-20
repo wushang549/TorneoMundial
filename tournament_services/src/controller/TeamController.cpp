@@ -114,7 +114,6 @@ crow::response TeamController::UpdateTeam(const crow::request& request,
     return crow::response{crow::NO_CONTENT}; // 204
 }
 
-
 crow::response TeamController::DeleteTeam(const std::string& teamId) const {
     if (!std::regex_match(teamId, ID_VALUE)) {
         return crow::response{crow::BAD_REQUEST, "Invalid ID format"};

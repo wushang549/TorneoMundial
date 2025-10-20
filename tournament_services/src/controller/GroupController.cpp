@@ -335,3 +335,13 @@ crow::response GroupController::DeleteGroup(const std::string& tournamentId,
 
     return crow::response{crow::NO_CONTENT};
 }
+
+// ============= ROUTE REGISTRATION (Registry/Macros) =============
+REGISTER_ROUTE(GroupController, GetGroups,      "/tournaments/<string>/groups", "GET"_method)
+REGISTER_ROUTE(GroupController, GetGroup,       "/tournaments/<string>/groups/<string>", "GET"_method)
+REGISTER_ROUTE(GroupController, CreateGroup,    "/tournaments/<string>/groups", "POST"_method)
+REGISTER_ROUTE(GroupController, UpdateTeams,    "/tournaments/<string>/groups/<string>/teams", "PATCH"_method)
+REGISTER_ROUTE(GroupController, AddTeamToGroupById, "/tournaments/<string>/groups/<string>/teams/<string>", "POST"_method)
+REGISTER_ROUTE(GroupController, AddTeamToGroup, "/tournaments/<string>/groups/<string>", "POST"_method)
+REGISTER_ROUTE(GroupController, RenameGroup,    "/tournaments/<string>/groups/<string>", "PUT"_method)
+REGISTER_ROUTE(GroupController, DeleteGroup,    "/tournaments/<string>/groups/<string>", "DELETE"_method)
