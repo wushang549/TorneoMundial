@@ -59,17 +59,4 @@ public:
                                const std::string& groupId);
 };
 
-// ============= ROUTE REGISTRATION (Registry/Macros) =============
-
-REGISTER_ROUTE(GroupController, GetGroups,      "/tournaments/<string>/groups", "GET"_method)
-REGISTER_ROUTE(GroupController, GetGroup,       "/tournaments/<string>/groups/<string>", "GET"_method)
-REGISTER_ROUTE(GroupController, CreateGroup,    "/tournaments/<string>/groups", "POST"_method)
-REGISTER_ROUTE(GroupController, UpdateTeams,    "/tournaments/<string>/groups/<string>/teams", "PATCH"_method)
-REGISTER_ROUTE(GroupController, AddTeamToGroupById, "/tournaments/<string>/groups/<string>/teams/<string>", "POST"_method)
-REGISTER_ROUTE(GroupController, AddTeamToGroup, "/tournaments/<string>/groups/<string>", "POST"_method)
-
-// === nuevas rutas sin afectar las anteriores ===
-REGISTER_ROUTE(GroupController, RenameGroup,    "/tournaments/<string>/groups/<string>", "PUT"_method)
-REGISTER_ROUTE(GroupController, DeleteGroup,    "/tournaments/<string>/groups/<string>", "DELETE"_method)
-
 #endif /* A7B3517D_1DC1_4B59_A78C_D3E03D29710C */
