@@ -5,11 +5,10 @@
 #include <nlohmann/json.hpp>
 
 #include "delegate/ITournamentDelegate.hpp"
-#include "persistence/repository/IGroupRepository.hpp"   // 👈 para embebidos (groups)
-
+#include "persistence/repository/IGroupRepository.hpp"
 class TournamentController {
     std::shared_ptr<ITournamentDelegate> tournamentDelegate;
-    std::shared_ptr<IGroupRepository>     groupRepository; // 👈 nuevo dep. para embebido
+    std::shared_ptr<IGroupRepository>     groupRepository;
 
 public:
     explicit TournamentController(std::shared_ptr<ITournamentDelegate> tournament,

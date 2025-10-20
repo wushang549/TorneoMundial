@@ -135,7 +135,7 @@ inline crow::response GroupController::CreateGroup(const crow::request& request,
         r.code = crow::CREATED;
         r.add_header("location", *idExp);
         r.add_header(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE);
-        r.write(nlohmann::json{{"id", *idExp}}.dump()); // 👈 body con id
+        r.write(nlohmann::json{{"id", *idExp}}.dump());
     } else {
         r.code = 422;
         r.add_header(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE);

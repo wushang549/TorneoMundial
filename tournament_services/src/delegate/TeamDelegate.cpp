@@ -12,13 +12,13 @@ std::vector<std::shared_ptr<domain::Team>> TeamDelegate::GetAllTeams() {
 bool TeamDelegate::UpdateTeam(std::string_view id, const domain::Team& incoming) {
     if (!teamRepository->ReadById(std::string(id))) return false;  // no existe → 404 en controller
     domain::Team toUpdate = incoming;
-    toUpdate.Id = std::string(id);   // 👈 forzamos el id del path
+    toUpdate.Id = std::string(id);
     teamRepository->Update(toUpdate);
     return true;
 }
 
 std::shared_ptr<domain::Team> TeamDelegate::GetTeam(std::string_view id) {
-    // ✅ usar string_view directo (coincide con la interfaz y con el mock)
+    // usar string_view directo (coincide con la interfaz y con el mock)
     return teamRepository->ReadById(id);
 }
 
@@ -27,13 +27,13 @@ std::string_view TeamDelegate::SaveTeam(const domain::Team& team) {
 }
 
 bool TeamDelegate::DeleteTeam(std::string_view id) {
-    // ✅ pre-check con string_view
+    // pre-check con string_view
     if (teamRepository->ReadById(id) == nullptr) {
         return false; // not found
     }
-    // ✅ delete con string_view
+    // delete con string_view
     teamRepository->Delete(id);
-    // ✅ post-check con string_view
+    // post-check con string_view
     return teamRepository->ReadById(id) == nullptr;
 }
 

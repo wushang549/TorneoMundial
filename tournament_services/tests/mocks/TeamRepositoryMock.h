@@ -22,5 +22,5 @@ public:
     MOCK_METHOD(void, Delete, (std::string_view), (override));
 };
 
-// ✅ Alias para compatibilidad con el nombre viejo
+// Alias para compatibilidad con el nombre viejo
 using MockTeamRepository = TeamRepositoryMock;

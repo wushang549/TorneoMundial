@@ -37,7 +37,7 @@ public:
     UpdateTeams(std::string_view tournamentId, std::string_view groupId,
                 const std::vector<domain::Team>& teams) = 0;
 
-    // ✅ NEW: add one team to a specific group (idempotent if already in the tournament)
+    // Add one team to a specific group (idempotent if already in the tournament)
     virtual std::expected<void, std::string>
     AddTeamToGroup(std::string_view tournamentId,
                    std::string_view groupId,
