@@ -1,203 +1,150 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <expected>
+#include <stdexcept>
 #include <memory>
-#include <string>
-#include <vector>
-
 #include "delegate/TournamentDelegate.hpp"
-#include "mocks/TournamentRepositoryMock.h"
-#include "domain/Tournament.hpp"
+#include "../mocks/TournamentRepositoryMock.h"
 
-using ::testing::StrictMock;
-using ::testing::Return;
-using ::testing::Invoke;
+using namespace testing;
+using namespace std::literals;
 
-// Helper para crear objetos de prueba
-static std::shared_ptr<domain::Tournament> mkT(
-  const std::string& id, const std::string& name,
-  int groups, int maxPerGroup, domain::TournamentType type)
-{
-  domain::TournamentFormat fmt{groups, maxPerGroup, type};
-  auto p = std::make_shared<domain::Tournament>(name, fmt);
-  p->Id() = id;
-  return p;
-}
-
-/* 
-   Al método que procesa la creación de torneo, validar que el valor 
-   que se le transfiera a TournamentRepository es el esperado.
-   Simular una inserción válida y que la respuesta de esta función 
-   sea el ID generado.
-    */
-TEST(TournamentDelegateTest, Create_ReturnsRepoId){
-  auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
-  EXPECT_CALL(*repo, Create(::testing::_)).WillOnce(Return(std::string{"t-001"}));
-  TournamentDelegate sut{repo};
-  domain::TournamentFormat fmt{2,4,domain::TournamentType::ROUND_ROBIN};
-  auto obj = std::make_shared<domain::Tournament>("Alpha", fmt);
-  EXPECT_EQ(sut.CreateTournament(obj), "t-001");
-}
-
-/* 
-   Al método que procesa la creación de torneo, validar que el valor 
-   que se le transfiera a TournamentRepository es el esperado.
-   Simular una inserción fallida y que la respuesta de esta función 
-   sea un error o mensaje usando std::expected.
-    */
-TEST(TournamentDelegateTest, Create_Fails_ReturnsUnexpected){
-  auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
-  EXPECT_CALL(*repo, Create(::testing::_))
-      .WillOnce(Return(std::unexpected<std::string>{"db error"}));
-  TournamentDelegate sut{repo};
-  domain::TournamentFormat fmt{2,4,domain::TournamentType::ROUND_ROBIN};
-  auto obj = std::make_shared<domain::Tournament>("Fail", fmt);
-  auto result = sut.CreateTournament(obj);
-  EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), "db error");
-}
-
-/* 
-   Al método que procesa la búsqueda de un torneo por ID, validar que 
-   el valor que se le transfiera a TournamentRepository es el esperado.
-   Simular el resultado con un objeto y validar valores del objeto.
-    */
-TEST(TournamentDelegateTest, ReadById_Found){
-  auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
-  EXPECT_CALL(*repo, ReadById("x9")).WillOnce(Return(mkT("x9","X",1,8,domain::TournamentType::NFL)));
-  TournamentDelegate sut{repo};
-  auto t = sut.ReadById("x9");
-  ASSERT_NE(t, nullptr);
-  EXPECT_EQ(t->Name(), "X");
-}
-
-/* 
-   Al método que procesa la búsqueda de un torneo por ID, validar que 
-   el valor que se le transfiera a TournamentRepository es el esperado.
-   Simular el resultado nulo y validar nullptr.
-    */
-TEST(TournamentDelegateTest, ReadById_NotFound_ReturnsNull){
-  auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
-  EXPECT_CALL(*repo, ReadById("NF1")).WillOnce(Return(nullptr));
-  TournamentDelegate sut{repo};
-  auto t = sut.ReadById("NF1");
-  EXPECT_EQ(t, nullptr);
-}
-
-/* 
-   Al método que procesa la búsqueda de torneos. 
-   Simular el resultado con una lista vacía de TournamentRepository.
-    */
-TEST(TournamentDelegateTest, ReadAll_Empty){
-  auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
-  EXPECT_CALL(*repo, ReadAll()).WillOnce(Return(std::vector<std::shared_ptr<domain::Tournament>>{}));
-  TournamentDelegate sut{repo};
-  EXPECT_TRUE(sut.ReadAll().empty());
-}
-
-/* 
-   Al método que procesa la búsqueda de torneos. 
-   Simular el resultado con una lista de objetos de TournamentRepository.
-    */
-TEST(TournamentDelegateTest, ReadAll_WithItems_ReturnsList){
-  auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
-  std::vector<std::shared_ptr<domain::Tournament>> data{
-      mkT("A","Alpha",2,4,domain::TournamentType::ROUND_ROBIN),
-      mkT("B","Beta",1,8,domain::TournamentType::NFL)
-  };
-  EXPECT_CALL(*repo, ReadAll()).WillOnce(Return(data));
-  TournamentDelegate sut{repo};
-  auto result = sut.ReadAll();
-  ASSERT_EQ(result.size(), 2u);
-  EXPECT_EQ(result[0]->Name(), "Alpha");
-  EXPECT_EQ(result[1]->Name(), "Beta");
-}
-
-/* 
-   Al método que procesa la actualización de un torneo, validar la 
-   búsqueda de TournamentRepository por ID, validar el valor transferido 
-   a Update. Simular resultado exitoso.
-    */
-TEST(TournamentDelegateTest, Update_Success_ReturnsTrue_OverwritesId){
-  auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
-  EXPECT_CALL(*repo, Update(::testing::_))
-    .WillOnce(Invoke([](const domain::Tournament& d){
-      EXPECT_EQ(d.Id(), "U7");
-      EXPECT_EQ(d.Name(), "Gamma");
-      return std::string{"U7"};
-    }));
-  TournamentDelegate sut{repo};
-  domain::TournamentFormat fmt{4,16,domain::TournamentType::ROUND_ROBIN};
-  domain::Tournament in{"Gamma", fmt};
-  in.Id() = "WRONG";
-  EXPECT_TRUE(sut.UpdateTournament("U7", in));
-}
-
-/* 
-   Al método que procesa la actualización de un torneo, validar la 
-   búsqueda de TournamentRepository por ID. Simular resultado de 
-   búsqueda no exitoso y regresar error o mensaje usando std::expected.
-    */
-TEST(TournamentDelegateTest, Update_NotFound_ReturnsFalse_NoException){
-  auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
-  EXPECT_CALL(*repo, ReadById("U404")).WillOnce(Return(nullptr));
-  EXPECT_CALL(*repo, Update(::testing::_)).Times(0);
-  TournamentDelegate sut{repo};
-  domain::TournamentFormat fmt{1,4,domain::TournamentType::NFL};
-  domain::Tournament in{"Gamma", fmt};
-  EXPECT_FALSE(sut.UpdateTournament("U404", in));
-}
-
-/* 
-   Caso adicional, al método que procesa la actualización de un torneo,
-   simular que el repositorio lanza una excepción y validar que el 
-   resultado sea false (manejo de errores).
-    */
-TEST(TournamentDelegateTest, Update_RepoThrows_ReturnsFalse){
-  auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
-  EXPECT_CALL(*repo, Update(::testing::_))
-    .WillOnce(Invoke([](const domain::Tournament&){ throw std::runtime_error("db"); return std::string{}; }));
-  TournamentDelegate sut{repo};
-  domain::TournamentFormat fmt{1,4,domain::TournamentType::NFL};
-  domain::Tournament in{"Omega", fmt};
-  EXPECT_FALSE(sut.UpdateTournament("id", in));
-}
-
-/* 
-   Caso adicional, al método que procesa la eliminación de un torneo, 
-   validar que cuando el repositorio lanza una excepción, se regrese 
-   false (manejo correcto de errores).
-    */
-TEST(TournamentDelegateTest, DeleteTournament_RepoThrows_ReturnsFalse) {
-    auto repo = std::make_shared<StrictMock<TournamentRepositoryMock>>();
+TEST(TournamentDelegateTest, CreateTournament_Success) {
+    auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
+    EXPECT_CALL(*repo, Create(::testing::_))
+        .WillOnce(Return("T123"s));  // FIX: string, not string_view
     TournamentDelegate sut{repo};
-
-    EXPECT_CALL(*repo, Delete("T2"))
-        .WillOnce(Invoke([](std::string){ throw std::runtime_error("db"); }));
-
-    EXPECT_FALSE(sut.DeleteTournament("T2"));
+    auto res = sut.CreateTournament(std::make_shared<domain::Tournament>("Liga", domain::TournamentFormat{1,4,domain::TournamentType::NFL}));
+    ASSERT_TRUE(res.has_value());
+    EXPECT_EQ(res.value(), "T123");
 }
 
-/* 
-   Caso adicional, al método que procesa la eliminación de un torneo, 
-   validar que el valor se transfiera correctamente al repositorio 
-   y que el resultado sea true cuando no hay errores.
-    */
-TEST(TournamentDelegateTest, Delete_Success_ReturnsTrue){
-  auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
-  EXPECT_CALL(*repo, Delete("D1")).Times(1);
-  TournamentDelegate sut{repo};
-  EXPECT_TRUE(sut.DeleteTournament("D1"));
+TEST(TournamentDelegateTest, CreateTournament_RepoThrows_ReturnsUnexpected) {
+    auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
+    EXPECT_CALL(*repo, Create(::testing::_))
+    .WillOnce(::testing::Throw(std::runtime_error("db error")));
+    TournamentDelegate sut{repo};
+    auto res = sut.CreateTournament(std::make_shared<domain::Tournament>("Liga", domain::TournamentFormat{1,4,domain::TournamentType::NFL}));
+    ASSERT_FALSE(res.has_value());
+    EXPECT_THAT(res.error(), HasSubstr("db error"));
 }
 
-/* 
-   Caso adicional, al método que procesa la eliminación de un torneo,
-   simular excepción del repositorio (por restricciones de FK o error 
-   interno) y validar que el resultado sea false.
-    */
-TEST(TournamentDelegateTest, Delete_RepoThrows_ReturnsFalse){
-  auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
-  EXPECT_CALL(*repo, Delete("D2"))
-    .WillOnce(Invoke([](std::string){ throw std::runtime_error("fk"); }));
-  TournamentDelegate sut{repo};
-  EXPECT_FALSE(sut.DeleteTournament("D2"));
+TEST(TournamentDelegateTest, ReadById_Found_ReturnsTournament) {
+    auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
+    auto t = std::make_shared<domain::Tournament>("X", domain::TournamentFormat{1,2,domain::TournamentType::NFL});
+    EXPECT_CALL(*repo, ReadById("T1"))
+        .WillOnce(Return(t));
+    TournamentDelegate sut{repo};
+    auto result = sut.ReadById("T1");
+    ASSERT_TRUE(result.has_value());
+    ASSERT_NE(result.value(), nullptr);
+    EXPECT_EQ(result.value()->Name(), "X");
 }
+
+TEST(TournamentDelegateTest, ReadById_Throws_ReturnsUnexpected) {
+    auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
+    EXPECT_CALL(*repo, ReadById("T1"))
+    .WillOnce(::testing::Throw(std::runtime_error("boom")));
+    TournamentDelegate sut{repo};
+    auto result = sut.ReadById("T1");
+    ASSERT_FALSE(result.has_value());
+    EXPECT_THAT(result.error(), HasSubstr("boom"));
+}
+
+TEST(TournamentDelegateTest, ReadAll_Empty_ReturnsOkEmptyVector) {
+    auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
+    EXPECT_CALL(*repo, ReadAll())
+        .WillOnce(Return(std::vector<std::shared_ptr<domain::Tournament>>{}));
+    TournamentDelegate sut{repo};
+    auto result = sut.ReadAll();
+    ASSERT_TRUE(result.has_value());
+    EXPECT_TRUE(result->empty());
+}
+
+TEST(TournamentDelegateTest, ReadAll_WithItems_ReturnsList) {
+    auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
+    std::vector<std::shared_ptr<domain::Tournament>> tournaments {
+        std::make_shared<domain::Tournament>("Alpha", domain::TournamentFormat{1,2,domain::TournamentType::NFL}),
+        std::make_shared<domain::Tournament>("Beta",  domain::TournamentFormat{1,2,domain::TournamentType::NFL})
+    };
+    EXPECT_CALL(*repo, ReadAll()).WillOnce(Return(tournaments));
+    TournamentDelegate sut{repo};
+    auto result = sut.ReadAll();
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->size(), 2u);
+    EXPECT_EQ((*result)[0]->Name(), "Alpha");
+    EXPECT_EQ((*result)[1]->Name(), "Beta");
+}
+
+TEST(TournamentDelegateTest, ReadAll_RepoThrows_ReturnsUnexpected) {
+    auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
+    EXPECT_CALL(*repo, ReadAll())
+      .WillOnce(::testing::Throw(std::runtime_error("boom")));
+    TournamentDelegate sut{repo};
+    auto result = sut.ReadAll();
+    ASSERT_FALSE(result.has_value());
+    EXPECT_THAT(result.error(), HasSubstr("boom"));
+}
+
+TEST(TournamentDelegateTest, UpdateTournament_Success_ReturnsTrue) {
+    auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
+
+    auto existing = std::make_shared<domain::Tournament>("Old", domain::TournamentFormat{1,4,domain::TournamentType::NFL});
+    EXPECT_CALL(*repo, ReadById("U1"))
+        .WillOnce(Return(existing));  // ensure found
+
+    EXPECT_CALL(*repo, Update(::testing::_))
+        .WillOnce(Return("U1"s));     // or .Times(1) if Update is void
+
+    TournamentDelegate sut{repo};
+    auto result = sut.UpdateTournament("U1", domain::Tournament{"Liga", domain::TournamentFormat{1,4,domain::TournamentType::NFL}});
+    ASSERT_TRUE(result.has_value());
+    EXPECT_TRUE(result.value());
+}
+
+
+TEST(TournamentDelegateTest, UpdateTournament_Throws_ReturnsUnexpected) {
+    auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
+
+    auto existing = std::make_shared<domain::Tournament>("Old", domain::TournamentFormat{1,4,domain::TournamentType::NFL});
+    EXPECT_CALL(*repo, ReadById("U1"))
+        .WillOnce(Return(existing));  // ensure found so Update is reached
+
+    EXPECT_CALL(*repo, Update(::testing::_))
+        .WillOnce(::testing::Invoke([](const domain::Tournament&) -> std::string {
+            throw std::runtime_error("db");
+        }));
+    // Si Update es void: use ThrowAction via lambda -> void
+
+    TournamentDelegate sut{repo};
+    auto result = sut.UpdateTournament("U1", domain::Tournament{"Liga", domain::TournamentFormat{1,4,domain::TournamentType::NFL}});
+    ASSERT_FALSE(result.has_value());
+    EXPECT_THAT(result.error(), ::testing::HasSubstr("db"));
+}
+
+
+TEST(TournamentDelegateTest, DeleteTournament_Success_ReturnsTrue) {
+    auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
+    auto t = std::make_shared<domain::Tournament>("N", domain::TournamentFormat{1,1,domain::TournamentType::NFL});
+    EXPECT_CALL(*repo, ReadById("D2")).WillOnce(Return(t));
+    EXPECT_CALL(*repo, Delete("D2")).Times(1);
+    TournamentDelegate sut{repo};
+    auto result = sut.DeleteTournament("D2");
+    ASSERT_TRUE(result.has_value());
+    EXPECT_TRUE(result.value());
+}
+
+TEST(TournamentDelegateTest, DeleteTournament_Throws_ReturnsUnexpected) {
+    auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
+    auto t = std::make_shared<domain::Tournament>("N", domain::TournamentFormat{1,1,domain::TournamentType::NFL});
+    EXPECT_CALL(*repo, ReadById("D2")).WillOnce(Return(t));
+    EXPECT_CALL(*repo, Delete("D2"))
+        .WillOnce(::testing::Invoke([](const std::string&) -> void {
+            throw std::runtime_error("fk");
+        }));
+    TournamentDelegate sut{repo};
+    auto result = sut.DeleteTournament("D2");
+    ASSERT_FALSE(result.has_value());
+    EXPECT_THAT(result.error(), ::testing::HasSubstr("fk"));
+}
+

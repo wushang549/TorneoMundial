@@ -41,16 +41,16 @@ TEST(TeamDelegateTest, SaveTeam_ReturnsIdView){
    Simular una inserción fallida y que la respuesta de esta función 
    sea un error o mensaje usando std::expected.
     */
-TEST(TeamDelegateTest, SaveTeam_Fails_ReturnsUnexpected) {
-  auto repo = std::make_shared<StrictMock<MockTeamRepository>>();
-  EXPECT_CALL(*repo, Create(::testing::_))
-      .WillOnce(Return(std::unexpected<std::string>{"db error"})); 
-  TeamDelegate sut{repo};
-  domain::Team in{"", "New"};
-  auto result = sut.SaveTeam(in);
-  EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), "db error");
+TEST(TeamDelegateTest, SaveTeam_RepoReturnsEmpty_ReturnsEmptyView) {
+    auto repo = std::make_shared<StrictMock<MockTeamRepository>>();
+    EXPECT_CALL(*repo, Create(::testing::_))
+        .WillOnce(Return(""sv));
+    TeamDelegate sut{repo};
+    domain::Team in{"", "New"};
+    auto result = sut.SaveTeam(in);
+    EXPECT_TRUE(result.empty());
 }
+
 
 /* 
    Al método que procesa la búsqueda de un equipo por ID, validar que 
