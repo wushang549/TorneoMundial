@@ -101,7 +101,7 @@ crow::response TournamentController::ReadById(const std::string& id) {
     }
 }
 
-// PUT /tournaments/{id}
+// PATCH /tournaments/{id}
 crow::response TournamentController::UpdateTournament(const crow::request& request, const std::string& id) {
     if (!nlohmann::json::accept(request.body)) {
         return crow::response{crow::BAD_REQUEST, "Invalid JSON body"};
@@ -135,5 +135,5 @@ crow::response TournamentController::DeleteTournament(const std::string& id) {
 REGISTER_ROUTE(TournamentController, ReadAll,          "/tournaments",              "GET"_method)
 REGISTER_ROUTE(TournamentController, ReadById,         "/tournaments/<string>",     "GET"_method)
 REGISTER_ROUTE(TournamentController, CreateTournament, "/tournaments",              "POST"_method)
-REGISTER_ROUTE(TournamentController, UpdateTournament, "/tournaments/<string>",     "PUT"_method)
+REGISTER_ROUTE(TournamentController, UpdateTournament, "/tournaments/<string>",     "PATCH"_method)
 REGISTER_ROUTE(TournamentController, DeleteTournament, "/tournaments/<string>",     "DELETE"_method)
