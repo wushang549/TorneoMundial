@@ -1,4 +1,4 @@
-//
+//GroupRepository.cpp
 // Created by root on 9/27/25.
 //
 
@@ -24,22 +24,18 @@ std::string GroupRepository::Create (const domain::Group & entity) {
     return result[0]["id"].c_str();
 }
 
-std::string GroupRepository::Update (const domain::Group & entity) {
-    auto pooled = connectionProvider->Connection();
-    auto connection = dynamic_cast<PostgresConnection*>(&*pooled);
-    nlohmann::json groupBody = entity;
-
-    pqxx::work tx(*(connection->connection));
-    pqxx::result result = tx.exec(pqxx::prepped{"update_group"}, pqxx::params{entity.Id(), groupBody.dump()});
-
-    tx.commit();
-
-    return entity.Id();
-}
-
 void GroupRepository::Delete(std::string id) {
+    auto pooled = connectionProvider->Connection();
+    auto* conn  = dynamic_cast<PostgresConnection*>(&*pooled);
 
+    pqxx::work tx(*(conn->connection));
+    pqxx::result r = tx.exec_params(
+        "DELETE FROM groups WHERE id = $1::uuid",
+        id
+    );
+    tx.commit();
 }
+
 
 std::vector<std::shared_ptr<domain::Group>> GroupRepository::ReadAll() {
     std::vector<std::shared_ptr<domain::Group>> teams;
@@ -76,6 +72,26 @@ std::vector<std::shared_ptr<domain::Group>> GroupRepository::FindByTournamentId(
     }
 
     return groups;
+}
+// GroupRepository.cpp
+std::string GroupRepository::Update(const domain::Group& entity) {
+    auto pooled = connectionProvider->Connection();
+    auto* conn  = dynamic_cast<PostgresConnection*>(&*pooled);
+
+    nlohmann::json body = entity; // usa tu to_json(Group)
+    pqxx::work tx(*(conn->connection));
+    pqxx::result r = tx.exec_params(
+        "UPDATE groups "
+        "SET document = $2::jsonb, last_update_date = CURRENT_TIMESTAMP "
+        "WHERE id = $1::uuid "
+        "RETURNING id",
+        entity.Id(),                // $1
+        body.dump()                 // $2
+    );
+    if (r.empty()) { tx.abort(); throw std::runtime_error("update failed"); }
+    const std::string id = r[0]["id"].as<std::string>();
+    tx.commit();
+    return id;
 }
 
 std::shared_ptr<domain::Group> GroupRepository::FindByTournamentIdAndGroupId(const std::string_view& tournamentId, const std::string_view& groupId) {
