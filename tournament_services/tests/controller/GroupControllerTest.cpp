@@ -176,3 +176,276 @@ TEST(GroupControllerTest, AddTeamToGroup_GroupFull_409) {
     auto res = ctl.AddTeamToGroup(req, "T1", "G1");
     EXPECT_EQ(res.code, crow::CONFLICT);
 }
+// ========== GetGroup: error del delegate (400) y not-found via mensaje (404) ==========
+TEST(GroupControllerTest, GetGroup_DelegateError_400) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    EXPECT_CALL(*mock, GetGroup("T1"sv, "Gx"sv))
+        .WillOnce(Return(std::unexpected("boom")));
+
+    GroupController ctl{mock};
+    auto res = ctl.GetGroup("T1", "Gx");
+    EXPECT_EQ(res.code, crow::BAD_REQUEST);
+    EXPECT_THAT(res.body, ::testing::HasSubstr("boom"));
+}
+
+TEST(GroupControllerTest, GetGroup_NotFound_ByMessage_404) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    EXPECT_CALL(*mock, GetGroup("T1"sv, "Gz"sv))
+        .WillOnce(Return(std::unexpected("Group doesn't exist")));
+
+    GroupController ctl{mock};
+    auto res = ctl.GetGroup("T1", "Gz");
+    EXPECT_EQ(res.code, crow::NOT_FOUND);
+}
+
+// ========== GetGroups: success (200) y error (404) ==========
+TEST(GroupControllerTest, GetGroups_Success_200) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    auto g1 = mkGroup("G1","A"); g1->Teams().push_back(domain::Team{"T1","One"});
+    auto g2 = mkGroup("G2","B");
+    EXPECT_CALL(*mock, GetGroups("T1"sv))
+        .WillOnce(Return(std::vector<std::shared_ptr<domain::Group>>{g1, g2}));
+
+    GroupController ctl{mock};
+    auto res = ctl.GetGroups("T1");
+    EXPECT_EQ(res.code, crow::OK);
+    EXPECT_THAT(res.body, ::testing::HasSubstr("\"G1\""));
+    EXPECT_THAT(res.body, ::testing::HasSubstr("\"teams\""));
+}
+
+TEST(GroupControllerTest, GetGroups_DelegateError_404) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    EXPECT_CALL(*mock, GetGroups("T1"sv))
+        .WillOnce(Return(std::unexpected("Tournament doesn't exist")));
+    GroupController ctl{mock};
+    auto res = ctl.GetGroups("T1");
+    EXPECT_EQ(res.code, crow::NOT_FOUND);
+}
+
+// ========== CreateGroup: bad JSON (400), missing name (400), invalid teams (400), not found (404) ==========
+TEST(GroupControllerTest, CreateGroup_BadJson_400) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    GroupController ctl{mock};
+    auto req = make_req("{bad json");
+    auto res = ctl.CreateGroup(req, "T1");
+    EXPECT_EQ(res.code, crow::BAD_REQUEST);
+}
+
+TEST(GroupControllerTest, CreateGroup_MissingName_400) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    GroupController ctl{mock};
+    auto req = make_req(R"({"teams":[{"id":"t1","name":"n"}]})");
+    auto res = ctl.CreateGroup(req, "T1");
+    EXPECT_EQ(res.code, crow::BAD_REQUEST);
+}
+
+TEST(GroupControllerTest, CreateGroup_TeamsNotArray_400) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    GroupController ctl{mock};
+    auto req = make_req(R"({"name":"G","teams":123})");
+    auto res = ctl.CreateGroup(req, "T1");
+    EXPECT_EQ(res.code, crow::BAD_REQUEST);
+}
+
+TEST(GroupControllerTest, CreateGroup_TeamMissingId_400) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    GroupController ctl{mock};
+    auto req = make_req(R"({"name":"G","teams":[{"name":"N"}]})");
+    auto res = ctl.CreateGroup(req, "T1");
+    EXPECT_EQ(res.code, crow::BAD_REQUEST);
+}
+
+TEST(GroupControllerTest, CreateGroup_TournamentNotFound_404) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    EXPECT_CALL(*mock, CreateGroup("T1"sv, _))
+        .WillOnce(Return(std::unexpected("Tournament doesn't exist")));
+    GroupController ctl{mock};
+    auto req = make_req(R"({"name":"G"})");
+    auto res = ctl.CreateGroup(req, "T1");
+    EXPECT_EQ(res.code, crow::NOT_FOUND);
+}
+
+// ========== AddTeamToGroup: bad JSON (400), missing id (400), other error (400) ==========
+TEST(GroupControllerTest, AddTeamToGroup_BadJson_400) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    GroupController ctl{mock};
+    auto req = make_req("{bad json");
+    auto res = ctl.AddTeamToGroup(req, "T1", "G1");
+    EXPECT_EQ(res.code, crow::BAD_REQUEST);
+}
+
+TEST(GroupControllerTest, AddTeamToGroup_MissingId_400) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    GroupController ctl{mock};
+    auto req = make_req(R"({"name":"X"})");
+    auto res = ctl.AddTeamToGroup(req, "T1", "G1");
+    EXPECT_EQ(res.code, crow::BAD_REQUEST);
+}
+
+TEST(GroupControllerTest, AddTeamToGroup_OtherError_400) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    EXPECT_CALL(*mock, AddTeamToGroup("T1"sv, "G1"sv, "T2"sv))
+        .WillOnce(Return(std::unexpected("validation failed")));
+    GroupController ctl{mock};
+    auto req = make_req(R"({"id":"T2","name":"N"})");
+    auto res = ctl.AddTeamToGroup(req, "T1", "G1");
+    EXPECT_EQ(res.code, crow::BAD_REQUEST);
+}
+
+// ========== AddTeamToGroupById: success (204), not found (404), conflict (409), other (400) ==========
+TEST(GroupControllerTest, AddTeamToGroupById_Success_204) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    EXPECT_CALL(*mock, AddTeamToGroup("T1"sv, "G1"sv, "T9"sv))
+        .WillOnce(Return(std::expected<void, std::string>{}));
+    GroupController ctl{mock};
+    auto res = ctl.AddTeamToGroupById("T1","G1","T9");
+    EXPECT_EQ(res.code, crow::NO_CONTENT);
+}
+
+TEST(GroupControllerTest, AddTeamToGroupById_NotFound_404) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    EXPECT_CALL(*mock, AddTeamToGroup("T1"sv, "G1"sv, "Tx"sv))
+        .WillOnce(Return(std::unexpected("Group doesn't exist")));
+    GroupController ctl{mock};
+    auto res = ctl.AddTeamToGroupById("T1","G1","Tx");
+    EXPECT_EQ(res.code, crow::NOT_FOUND);
+}
+
+TEST(GroupControllerTest, AddTeamToGroupById_Conflict_409) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    EXPECT_CALL(*mock, AddTeamToGroup("T1"sv, "G1"sv, "Tz"sv))
+        .WillOnce(Return(std::unexpected("capacity reached")));
+    GroupController ctl{mock};
+    auto res = ctl.AddTeamToGroupById("T1","G1","Tz");
+    EXPECT_EQ(res.code, crow::CONFLICT);
+}
+
+TEST(GroupControllerTest, AddTeamToGroupById_Other_400) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    EXPECT_CALL(*mock, AddTeamToGroup("T1"sv, "G1"sv, "Ty"sv))
+        .WillOnce(Return(std::unexpected("weird error")));
+    GroupController ctl{mock};
+    auto res = ctl.AddTeamToGroupById("T1","G1","Ty");
+    EXPECT_EQ(res.code, crow::BAD_REQUEST);
+}
+
+// ========== UpdateTeams: bad JSON (400), body not array (400), entry not object (400), missing id (400) ==========
+TEST(GroupControllerTest, UpdateTeams_BadJson_400) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    GroupController ctl{mock};
+    auto res = ctl.UpdateTeams(make_req("{bad json}"), "T1", "G1");
+    EXPECT_EQ(res.code, crow::BAD_REQUEST);
+}
+
+TEST(GroupControllerTest, UpdateTeams_BodyNotArray_400) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    GroupController ctl{mock};
+    auto res = ctl.UpdateTeams(make_req(R"({"id":"x"})"), "T1", "G1");
+    EXPECT_EQ(res.code, crow::BAD_REQUEST);
+}
+
+TEST(GroupControllerTest, UpdateTeams_EntryNotObject_400) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    GroupController ctl{mock};
+    auto res = ctl.UpdateTeams(make_req(R"([1,2,3])"), "T1", "G1");
+    EXPECT_EQ(res.code, crow::BAD_REQUEST);
+}
+
+TEST(GroupControllerTest, UpdateTeams_MissingId_400) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    GroupController ctl{mock};
+    auto res = ctl.UpdateTeams(make_req(R"([{"name":"N"}])"), "T1", "G1");
+    EXPECT_EQ(res.code, crow::BAD_REQUEST);
+}
+
+// ========== UpdateTeams: success (204) y errores mapeados (404/409/400) ==========
+TEST(GroupControllerTest, UpdateTeams_Success_204) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    EXPECT_CALL(*mock, UpdateTeams("T1"sv, "G1"sv, ::testing::_))
+        .WillOnce(Return(std::expected<void, std::string>{}));
+
+    GroupController ctl{mock};
+    // mixed ids: "Id" and "id"; name optional
+    auto req = make_req(R"([{"Id":"A","name":"Alpha"},{"id":"B"}])");
+    auto res = ctl.UpdateTeams(req, "T1", "G1");
+    EXPECT_EQ(res.code, crow::NO_CONTENT);
+}
+
+TEST(GroupControllerTest, UpdateTeams_NotFound_404) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    EXPECT_CALL(*mock, UpdateTeams("T1"sv, "G1"sv, ::testing::_))
+        .WillOnce(Return(std::unexpected("Group doesn't exist")));
+    GroupController ctl{mock};
+    auto res = ctl.UpdateTeams(make_req(R"([{"id":"A"}])"), "T1", "G1");
+    EXPECT_EQ(res.code, crow::NOT_FOUND);
+}
+
+TEST(GroupControllerTest, UpdateTeams_Conflict_409) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    EXPECT_CALL(*mock, UpdateTeams("T1"sv, "G1"sv, ::testing::_))
+        .WillOnce(Return(std::unexpected("capacity exceeded")));
+    GroupController ctl{mock};
+    auto res = ctl.UpdateTeams(make_req(R"([{"id":"A"}])"), "T1", "G1");
+    EXPECT_EQ(res.code, crow::CONFLICT);
+}
+
+TEST(GroupControllerTest, UpdateTeams_OtherError_400) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    EXPECT_CALL(*mock, UpdateTeams("T1"sv, "G1"sv, ::testing::_))
+        .WillOnce(Return(std::unexpected("validation failed")));
+    GroupController ctl{mock};
+    auto res = ctl.UpdateTeams(make_req(R"([{"id":"A"}])"), "T1", "G1");
+    EXPECT_EQ(res.code, crow::BAD_REQUEST);
+}
+
+// ========== RenameGroup: bad JSON (400), missing name (400), conflict (409) ==========
+TEST(RenameGroupTest, RenameGroup_BadJson_400) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    GroupController ctl{mock};
+    auto res = ctl.RenameGroup(make_req("{bad json}"), "T1", "G1");
+    EXPECT_EQ(res.code, crow::BAD_REQUEST);
+}
+
+TEST(RenameGroupTest, RenameGroup_MissingName_400) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    GroupController ctl{mock};
+    auto res = ctl.RenameGroup(make_req(R"({"x":"y"})"), "T1", "G1");
+    EXPECT_EQ(res.code, crow::BAD_REQUEST);
+}
+
+TEST(RenameGroupTest, RenameGroup_Conflict_409) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    EXPECT_CALL(*mock, UpdateGroup("T1"sv, ::testing::_))
+        .WillOnce(Return(std::unexpected("already exists")));
+    GroupController ctl{mock};
+    auto res = ctl.RenameGroup(make_req(R"({"name":"Dup"})"), "T1", "G1");
+    EXPECT_EQ(res.code, crow::CONFLICT);
+}
+
+// ========== DeleteGroup: success (204), not found (404), conflict (409) ==========
+TEST(GroupControllerTest, DeleteGroup_Success_204) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    EXPECT_CALL(*mock, RemoveGroup("T1"sv, "G1"sv))
+        .WillOnce(Return(std::expected<void, std::string>{}));
+    GroupController ctl{mock};
+    auto res = ctl.DeleteGroup("T1","G1");
+    EXPECT_EQ(res.code, crow::NO_CONTENT);
+}
+
+TEST(GroupControllerTest, DeleteGroup_NotFound_404) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    EXPECT_CALL(*mock, RemoveGroup("T1"sv, "Gx"sv))
+        .WillOnce(Return(std::unexpected("Group doesn't exist")));
+    GroupController ctl{mock};
+    auto res = ctl.DeleteGroup("T1","Gx");
+    EXPECT_EQ(res.code, crow::NOT_FOUND);
+}
+
+TEST(GroupControllerTest, DeleteGroup_Conflict_409) {
+    auto mock = std::make_shared<StrictMock<GroupDelegateMock>>();
+    EXPECT_CALL(*mock, RemoveGroup("T1"sv, "Gy"sv))
+        .WillOnce(Return(std::unexpected("already assigned")));
+    GroupController ctl{mock};
+    auto res = ctl.DeleteGroup("T1","Gy");
+    EXPECT_EQ(res.code, crow::CONFLICT);
+}

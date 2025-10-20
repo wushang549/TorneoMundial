@@ -161,3 +161,100 @@ TEST(TeamDelegateTest, Delete_Success_ReturnsTrue){
   EXPECT_CALL(*repo, ReadById("D2"sv)).WillOnce(Return(nullptr));
   EXPECT_TRUE(sut.DeleteTeam("D2"));
 }
+
+// GetAllTeams: pass-through
+TEST(TeamDelegateTest, GetAllTeams_ReturnsRepoVector) {
+  auto repo = std::make_shared<StrictMock<TeamRepositoryMock>>();
+  EXPECT_CALL(*repo, ReadAll())
+      .WillOnce(Return(std::vector<std::shared_ptr<domain::Team>>{
+        std::make_shared<domain::Team>(domain::Team{"A","Alpha"}),
+        std::make_shared<domain::Team>(domain::Team{"B","Beta"})
+      }));
+
+  TeamDelegate sut{repo};
+  auto v = sut.GetAllTeams();
+  ASSERT_EQ(v.size(), 2u);
+  EXPECT_EQ(v[0]->Id, "A");
+}
+
+// GetTeam: found and null
+TEST(TeamDelegateTest, GetTeam_FoundAndNull) {
+  auto repo = std::make_shared<StrictMock<TeamRepositoryMock>>();
+  EXPECT_CALL(*repo, ReadById("X"sv)).WillOnce(Return(std::make_shared<domain::Team>(domain::Team{"X","One"})));
+  EXPECT_CALL(*repo, ReadById("Z"sv)).WillOnce(Return(nullptr));
+
+  TeamDelegate sut{repo};
+  EXPECT_NE(sut.GetTeam("X"), nullptr);
+  EXPECT_EQ(sut.GetTeam("Z"), nullptr);
+}
+
+// SaveTeam: returns created id
+TEST(TeamDelegateTest, SaveTeam_ReturnsId) {
+  auto repo = std::make_shared<StrictMock<TeamRepositoryMock>>();
+  EXPECT_CALL(*repo, Create(::testing::_))
+      .WillOnce(Return("GEN-1"sv));
+
+  TeamDelegate sut{repo};
+  domain::Team t{"N1","Name"};
+  auto id = sut.SaveTeam(t);
+  EXPECT_EQ(id, "GEN-1");
+}
+
+// UpdateTeam: not found -> false
+TEST(TeamDelegateTest, UpdateTeam_NotFound_ReturnsFalse) {
+  auto repo = std::make_shared<StrictMock<TeamRepositoryMock>>();
+  EXPECT_CALL(*repo, ReadById(::testing::_)).WillOnce(Return(nullptr));
+
+  TeamDelegate sut{repo};
+  domain::Team incoming{"IGN","NewName"};
+  EXPECT_FALSE(sut.UpdateTeam("U1", incoming));
+}
+
+// UpdateTeam: found -> Update called and true
+TEST(TeamDelegateTest, UpdateTeam_Found_UpdatesAndReturnsTrue) {
+  auto repo = std::make_shared<StrictMock<TeamRepositoryMock>>();
+  EXPECT_CALL(*repo, ReadById(::testing::_)).WillOnce(Return(std::make_shared<domain::Team>(domain::Team{"U2","Old"})));
+  EXPECT_CALL(*repo, Update(::testing::_)).Times(1);
+
+  TeamDelegate sut{repo};
+  domain::Team incoming{"IGN","New"};
+  EXPECT_TRUE(sut.UpdateTeam("U2", incoming));
+}
+
+// DeleteTeam: not found -> false
+TEST(TeamDelegateTest, DeleteTeam_NotFound_ReturnsFalse) {
+  auto repo = std::make_shared<StrictMock<TeamRepositoryMock>>();
+  EXPECT_CALL(*repo, ReadById("D0"sv)).WillOnce(Return(nullptr));
+
+  TeamDelegate sut{repo};
+  EXPECT_FALSE(sut.DeleteTeam("D0"));
+}
+
+// DeleteTeam: success -> true (post-check null)
+TEST(TeamDelegateTest, DeleteTeam_Success_ReturnsTrue) {
+  auto repo = std::make_shared<StrictMock<TeamRepositoryMock>>();
+  {
+    ::testing::InSequence seq;
+    EXPECT_CALL(*repo, ReadById("D1"sv)).WillOnce(Return(std::make_shared<domain::Team>(domain::Team{"D1","X"})));
+    EXPECT_CALL(*repo, Delete("D1"sv)).Times(1);
+    EXPECT_CALL(*repo, ReadById("D1"sv)).WillOnce(Return(nullptr));
+  }
+
+  TeamDelegate sut{repo};
+  EXPECT_TRUE(sut.DeleteTeam("D1"));
+}
+
+// DeleteTeam: deletion did not remove entity -> false
+TEST(TeamDelegateTest, DeleteTeam_PostCheckStillExists_ReturnsFalse) {
+  auto repo = std::make_shared<StrictMock<TeamRepositoryMock>>();
+  auto stillThere = std::make_shared<domain::Team>(domain::Team{"D2","Y"});
+  {
+    ::testing::InSequence seq;
+    EXPECT_CALL(*repo, ReadById("D2"sv)).WillOnce(Return(stillThere));
+    EXPECT_CALL(*repo, Delete("D2"sv)).Times(1);
+    EXPECT_CALL(*repo, ReadById("D2"sv)).WillOnce(Return(stillThere));
+  }
+
+  TeamDelegate sut{repo};
+  EXPECT_FALSE(sut.DeleteTeam("D2"));
+}
