@@ -16,7 +16,7 @@ set(TEST_SOURCES
         ../src/controller/TournamentController.cpp
         ../src/delegate/TeamDelegate.cpp
         ../src/delegate/TournamentDelegate.cpp
-        ../src/delegate/GroupDelegate.cpp         # 👈 FALTABA: añade GroupDelegate
+        ../src/delegate/GroupDelegate.cpp
 )
 
 find_package(GTest CONFIG REQUIRED)

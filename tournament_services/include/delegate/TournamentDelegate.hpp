@@ -1,4 +1,5 @@
 #pragma once
+#include <expected>
 #include <memory>
 #include <string>
 #include <vector>
@@ -13,9 +14,18 @@ public:
     explicit TournamentDelegate(std::shared_ptr<IRepository<domain::Tournament, std::string>> repository)
         : tournamentRepository(std::move(repository)) {}
 
-    std::string CreateTournament(std::shared_ptr<domain::Tournament> tournament) override;
-    std::vector<std::shared_ptr<domain::Tournament>> ReadAll() override;
-    std::shared_ptr<domain::Tournament> ReadById(const std::string& id) override;
-    bool UpdateTournament(const std::string& id, const domain::Tournament& t) override;
-    bool DeleteTournament(const std::string& id) override;
+    std::expected<std::string, std::string>
+    CreateTournament(std::shared_ptr<domain::Tournament> tournament) override;
+
+    std::expected<std::vector<std::shared_ptr<domain::Tournament>>, std::string>
+    ReadAll() override;
+
+    std::expected<std::shared_ptr<domain::Tournament>, std::string>
+    ReadById(const std::string& id) override;
+
+    std::expected<bool, std::string>
+    UpdateTournament(const std::string& id, const domain::Tournament& t) override;
+
+    std::expected<bool, std::string>
+    DeleteTournament(const std::string& id) override;
 };

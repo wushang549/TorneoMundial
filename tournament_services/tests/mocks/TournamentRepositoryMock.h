@@ -20,5 +20,5 @@ public:
     MOCK_METHOD(void, Delete, (std::string), (override));
 };
 
-// ✅ Alias para compatibilidad con el nombre viejo usado en algunos tests
+// Alias para compatibilidad con el nombre viejo usado en algunos tests
 using MockTournamentRepository = TournamentRepositoryMock;

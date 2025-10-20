@@ -46,7 +46,7 @@ public:
     UpdateTeams(std::string_view tournamentId, std::string_view groupId,
                 const std::vector<domain::Team>& teams) override;
 
-    // ✅ Implementación que te faltaba
+    // Implementación que te faltaba
     std::expected<void, std::string>
     AddTeamToGroup(std::string_view tournamentId,
                    std::string_view groupId,
