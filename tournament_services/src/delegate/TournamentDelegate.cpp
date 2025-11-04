@@ -1,31 +1,57 @@
-//
-// Created by tomas on 8/31/25.
-//
-#include <string_view>
-#include <memory>
-
 #include "delegate/TournamentDelegate.hpp"
 
-#include "persistence/repository/IRepository.hpp"
-
-TournamentDelegate::TournamentDelegate(std::shared_ptr<IRepository<domain::Tournament, std::string> > repository, std::shared_ptr<QueueMessageProducer> producer) : tournamentRepository(std::move(repository)), producer(std::move(producer)) {
+std::expected<std::string, std::string>
+TournamentDelegate::CreateTournament(std::shared_ptr<domain::Tournament> tournament) {
+    try {
+        return tournamentRepository->Create(*tournament);
+    } catch (const std::exception& ex) {
+        return std::unexpected(std::string("Failed to create tournament: ") + ex.what());
+    }
 }
 
-std::string TournamentDelegate::CreateTournament(std::shared_ptr<domain::Tournament> tournament) {
-    //fill groups according to max groups
-    std::shared_ptr<domain::Tournament> tp = std::move(tournament);
-    // for (auto[i, g] = std::tuple{0, 'A'}; i < tp->Format().NumberOfGroups(); i++,g++) {
-    //     tp->Groups().push_back(domain::Group{std::format("Tournament {}", g)});
-    // }
-
-    std::string id = tournamentRepository->Create(*tp);
-    producer->SendMessage(id, "tournament.created");
-
-    //if groups are completed also create matches
-
-    return id;
+std::expected<std::vector<std::shared_ptr<domain::Tournament>>, std::string>
+TournamentDelegate::ReadAll() {
+    try {
+        return tournamentRepository->ReadAll();
+    } catch (const std::exception& ex) {
+        return std::unexpected(std::string("Failed to read tournaments: ") + ex.what());
+    }
 }
 
-std::vector<std::shared_ptr<domain::Tournament> > TournamentDelegate::ReadAll() {
-    return tournamentRepository->ReadAll();
+std::expected<std::shared_ptr<domain::Tournament>, std::string>
+TournamentDelegate::ReadById(const std::string& id) {
+    try {
+        return tournamentRepository->ReadById(id);
+    } catch (const std::exception& ex) {
+        return std::unexpected(std::string("Failed to read tournament: ") + ex.what());
+    }
+}
+
+std::expected<bool, std::string>
+TournamentDelegate::UpdateTournament(const std::string& id, const domain::Tournament& t) {
+    try {
+        if (!tournamentRepository->ReadById(id)) {
+            return false; // not found
+        }
+
+        domain::Tournament copy = t;
+        copy.Id() = id;
+        tournamentRepository->Update(copy);
+        return true;
+    } catch (const std::exception& ex) {
+        return std::unexpected(std::string("Failed to update tournament: ") + ex.what());
+    }
+}
+
+std::expected<bool, std::string>
+TournamentDelegate::DeleteTournament(const std::string& id) {
+    try {
+        if (!tournamentRepository->ReadById(id)) {
+            return false; // not found
+        }
+        tournamentRepository->Delete(id);
+        return true;
+    } catch (const std::exception& ex) {
+        return std::unexpected(std::string("Failed to delete tournament: ") + ex.what());
+    }
 }
