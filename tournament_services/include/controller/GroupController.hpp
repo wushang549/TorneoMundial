@@ -27,7 +27,7 @@ public:
     // GET /tournaments/{tid}/groups
     crow::response GetGroups(const std::string& tournamentId);
 
-    // GET /tournaments/{tid}/groups/{gid}
+    // GET /tournaments/{tid}/groups/{gid}F
     crow::response GetGroup(const std::string& tournamentId, const std::string& groupId);
 
     // POST /tournaments/{tid}/groups

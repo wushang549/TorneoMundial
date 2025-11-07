@@ -7,7 +7,8 @@ set(SERVICES_SOURCES
         src/controller/TournamentController.cpp
         src/controller/TeamController.cpp
         src/delegate/GroupDelegate.cpp
-        src/controller/GroupController.cpp)
+        src/controller/GroupController.cpp
+        src/controller/MatchController.cpp)
 
 include(CTest)
 enable_testing()
