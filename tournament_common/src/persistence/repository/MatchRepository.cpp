@@ -47,6 +47,12 @@ std::string MatchRepository::to_doc_string(const domain::Match& m) {
     if (m.DecidedBy().has_value()) {
         doc += ",\"decidedBy\":\""; doc += esc(*m.DecidedBy()); doc += "\"";
     }
+    if (m.NextMatchId().has_value()) {
+        doc += ",\"nextMatchId\":\""; doc += esc(*m.NextMatchId()); doc += "\"";
+    }
+    if (m.NextMatchWinnerSlot().has_value()) {
+        doc += ",\"nextMatchWinnerSlot\":\""; doc += esc(*m.NextMatchWinnerSlot()); doc += "\"";
+    }
 
     doc += "}";
     return doc;
