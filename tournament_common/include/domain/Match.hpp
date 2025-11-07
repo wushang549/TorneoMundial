@@ -1,20 +1,22 @@
 #pragma once
 #include <string>
 #include <optional>
+#include <utility>
 #include <nlohmann/json.hpp>
 
 namespace domain {
 
 /**
  * Lightweight team reference stored inside a Match.
- * Mirrors the API shape: { "id": "...", "name": "..." }
+ * API shape: { "id": "...", "name": "..." }
  */
 class TeamRef {
     std::string id_;
     std::string name_;
 public:
     TeamRef() = default;
-    TeamRef(std::string id, std::string name) : id_(std::move(id)), name_(std::move(name)) {}
+    TeamRef(std::string id, std::string name)
+        : id_(std::move(id)), name_(std::move(name)) {}
 
     const std::string& Id() const { return id_; }
     const std::string& Name() const { return name_; }
@@ -25,7 +27,7 @@ public:
 
 /**
  * Domain model for a match.
- * Minimal fields to support: listing, scoring, winner resolution and knockout progression.
+ * Supports: listing, scoring, winner resolution, and knockout progression linkage.
  */
 class Match {
     std::string id_;
@@ -39,8 +41,19 @@ class Match {
     std::optional<std::string> winnerTeamId_;
     std::optional<std::string> decidedBy_;  // "regularTime" | "randomTieBreak"
 
+    // Knockout progression pointers
+    std::optional<std::string> nextMatchId_;          // UUID of the next match in the bracket
+    std::optional<std::string> nextMatchWinnerSlot_;  // "home" | "visitor"
+
 public:
     Match() = default;
+
+    // Next match linkage (used for knockout progression)
+    const std::optional<std::string>& NextMatchId() const { return nextMatchId_; }
+    void SetNextMatchId(const std::string& id) { nextMatchId_ = id; }
+
+    const std::optional<std::string>& NextMatchWinnerSlot() const { return nextMatchWinnerSlot_; }
+    void SetNextMatchWinnerSlot(const std::string& slot) { nextMatchWinnerSlot_ = slot; }
 
     // Basic getters (const + non-const where useful)
     const std::string& Id() const { return id_; }
@@ -112,18 +125,26 @@ inline void to_json(nlohmann::json& j, const Match& m) {
         {"status",       m.Status()}
     };
 
-    // Only emit "score" when both values are present (API expects it omitted for pending)
-    // inside: inline void from_json(const nlohmann::json& j, Match& m)
-    class TeamRef {
-    public:
-        TeamRef& operator=(const TeamRef&) = default;
-        TeamRef& operator=(TeamRef&&) noexcept = default;
-    };
+    // Only emit "score" when both values are present (avoid partial score shape)
+    if (m.HasScore()) {
+        const auto homeVal    = static_cast<nlohmann::json::number_integer_t>(*m.ScoreHome());
+        const auto visitorVal = static_cast<nlohmann::json::number_integer_t>(*m.ScoreVisitor());
+
+        nlohmann::json score = nlohmann::json::object();
+        score["home"]    = homeVal;
+        score["visitor"] = visitorVal;
+
+        j["score"] = std::move(score);
+    }
 
 
     // Optional winner/decision
     if (m.winnerTeamId_.has_value()) j["winnerTeamId"] = *m.winnerTeamId_;
     if (m.decidedBy_.has_value())    j["decidedBy"]    = *m.decidedBy_;
+
+    // Optional knockout linkage
+    if (m.nextMatchId_.has_value())         j["nextMatchId"]         = *m.nextMatchId_;
+    if (m.nextMatchWinnerSlot_.has_value()) j["nextMatchWinnerSlot"] = *m.nextMatchWinnerSlot_;
 }
 
 inline void from_json(const nlohmann::json& j, Match& m) {
@@ -132,21 +153,42 @@ inline void from_json(const nlohmann::json& j, Match& m) {
     m.Round()        = j.value("round", "");
     m.Status()       = j.value("status", "pending");
 
-    if (j.contains("home"))    m.Home()    = j.at("home").get<TeamRef>();
-    if (j.contains("visitor")) m.Visitor() = j.at("visitor").get<TeamRef>();
+    // Assign TeamRef fields explicitly (avoids clangd/operator= issues)
+    if (j.contains("home") && j["home"].is_object()) {
+        const auto& h = j["home"];
+        m.Home().Id()   = h.value("id", "");
+        m.Home().Name() = h.value("name", "");
+    }
+    if (j.contains("visitor") && j["visitor"].is_object()) {
+        const auto& v = j["visitor"];
+        m.Visitor().Id()   = v.value("id", "");
+        m.Visitor().Name() = v.value("name", "");
+    }
 
+    // Optional score
     if (j.contains("score") && j["score"].is_object()) {
         const auto& s = j["score"];
         if (s.contains("home") && s.contains("visitor") &&
             s["home"].is_number_integer() && s["visitor"].is_number_integer()) {
             m.SetScore(s["home"].get<int>(), s["visitor"].get<int>());
+        } else {
+            m.ClearScore();
         }
     } else {
         m.ClearScore();
     }
 
-    if (j.contains("winnerTeamId")) m.winnerTeamId_ = j["winnerTeamId"].get<std::string>();
-    if (j.contains("decidedBy"))    m.decidedBy_    = j["decidedBy"].get<std::string>();
+    // Optional winner/decision
+    if (j.contains("winnerTeamId") && j["winnerTeamId"].is_string())
+        m.winnerTeamId_ = j["winnerTeamId"].get<std::string>();
+    if (j.contains("decidedBy") && j["decidedBy"].is_string())
+        m.decidedBy_    = j["decidedBy"].get<std::string>();
+
+    // Optional knockout linkage
+    if (j.contains("nextMatchId") && j["nextMatchId"].is_string())
+        m.nextMatchId_ = j["nextMatchId"].get<std::string>();
+    if (j.contains("nextMatchWinnerSlot") && j["nextMatchWinnerSlot"].is_string())
+        m.nextMatchWinnerSlot_ = j["nextMatchWinnerSlot"].get<std::string>();
 }
 
 } // namespace domain
