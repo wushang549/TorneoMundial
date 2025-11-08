@@ -36,4 +36,8 @@ public:
     crow::response PatchScore(const crow::request& request,
                               const std::string& tournamentId,
                               const std::string& matchId) const;
+    // POST /tournaments/{tId}/matches
+    // Body: { "round": "...", "home":{id,name}, "visitor":{id,name} }
+    crow::response Create(const crow::request& request,
+                          const std::string& tournamentId) const;   // <-- NEW
 };

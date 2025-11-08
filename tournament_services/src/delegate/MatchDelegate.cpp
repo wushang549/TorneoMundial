@@ -117,3 +117,58 @@ MatchDelegate::UpdateScore(const std::string& tournamentId,
         return std::unexpected(std::string("unexpected:") + e.what());
     }
 }
+std::expected<std::string, std::string>
+MatchDelegate::Create(const std::string& tournamentId, const nlohmann::json& body) {
+    // Check tournament existence
+    if (!tournamentDelegate || !tournamentDelegate->ReadById(tournamentId)) {
+        return std::unexpected("not_found");
+    }
+
+    // Validate body shape
+    if (!body.contains("round") || !body["round"].is_string()) {
+        return std::unexpected("validation:missing_or_invalid_round");
+    }
+    if (!body.contains("home") || !body["home"].is_object() ||
+        !body["home"].contains("id") || !body["home"]["id"].is_string() ||
+        !body["home"].contains("name") || !body["home"]["name"].is_string()) {
+        return std::unexpected("validation:missing_or_invalid_home");
+    }
+    if (!body.contains("visitor") || !body["visitor"].is_object() ||
+        !body["visitor"].contains("id") || !body["visitor"]["id"].is_string() ||
+        !body["visitor"].contains("name") || !body["visitor"]["name"].is_string()) {
+        return std::unexpected("validation:missing_or_invalid_visitor");
+    }
+
+    const std::string round = body["round"].get<std::string>();
+    const std::string homeId = body["home"]["id"].get<std::string>();
+    const std::string homeName = body["home"]["name"].get<std::string>();
+    const std::string visitorId = body["visitor"]["id"].get<std::string>();
+    const std::string visitorName = body["visitor"]["name"].get<std::string>();
+
+    if (round.empty()) {
+        return std::unexpected("validation:round_empty");
+    }
+    if (!std::regex_match(homeId, UUID_RE_DELEG) || !std::regex_match(visitorId, UUID_RE_DELEG)) {
+        return std::unexpected("validation:team_id_not_uuid");
+    }
+    if (homeId == visitorId) {
+        return std::unexpected("validation:same_team_ids");
+    }
+
+    // Build domain entity
+    domain::Match m;
+    m.TournamentId() = tournamentId;
+    m.Round() = round;
+    m.Home().Id() = homeId;
+    m.Home().Name() = homeName;
+    m.Visitor().Id() = visitorId;
+    m.Visitor().Name() = visitorName;
+    m.Status() = "pending"; // default
+
+    try {
+        const std::string id = matchRepository->Create(m);
+        return id;
+    } catch (const std::exception& e) {
+        return std::unexpected(std::string("unexpected:") + e.what());
+    }
+}

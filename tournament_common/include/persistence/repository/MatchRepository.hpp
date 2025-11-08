@@ -35,6 +35,6 @@ public:
     std::shared_ptr<domain::Match>
     FindByTournamentIdAndMatchId(const std::string& tournamentId,
                                  const std::string& matchId) override;
-
+    std::string Create(const domain::Match& entity) override;
     std::string Update(const domain::Match& entity) override;
 };

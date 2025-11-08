@@ -132,3 +132,28 @@ std::string MatchRepository::Update(const domain::Match& entity) {
     tx.commit();
     return entity.Id();
 }
+std::string MatchRepository::Create(const domain::Match& entity) {
+    if (entity.TournamentId().empty()) {
+        throw std::invalid_argument("match.TournamentId is required");
+    }
+
+    auto pooled = connectionProvider->Connection();
+    auto* conn  = dynamic_cast<PostgresConnection*>(&*pooled);
+
+    const std::string doc = to_doc_string(entity);
+
+    pqxx::work tx(*(conn->connection));
+    pqxx::result r = tx.exec_params(
+        "INSERT INTO matches (tournament_id, document) "
+        "VALUES ($1::uuid, $2::jsonb) "
+        "RETURNING id",
+        entity.TournamentId(), doc
+    );
+    if (r.empty()) {
+        tx.abort();
+        throw std::runtime_error("insert failed");
+    }
+    const std::string id = r[0]["id"].c_str();
+    tx.commit();
+    return id;
+}

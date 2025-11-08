@@ -123,8 +123,45 @@ crow::response MatchController::PatchScore(const crow::request& request,
 
     return crow::response{crow::NO_CONTENT};
 }
+crow::response MatchController::Create(const crow::request& request,
+                                       const std::string& tournamentId) const {
+    // Validate path param
+    if (!std::regex_match(tournamentId, UUID_RE)) {
+        return crow::response{crow::BAD_REQUEST, "Invalid tournament ID format"};
+    }
+    // Validate JSON
+    if (!nlohmann::json::accept(request.body)) {
+        return crow::response{crow::BAD_REQUEST, "Invalid JSON body"};
+    }
+    auto body = nlohmann::json::parse(request.body);
 
+    try {
+        auto result = matchDelegate->Create(tournamentId, body);
+        if (!result) {
+            const std::string err = result.error();
+            if (err == "not_found") {
+                return crow::response{crow::NOT_FOUND, "tournament not found"};
+            }
+            if (err.rfind("validation:", 0) == 0) {
+                return crow::response{422, err.substr(std::string("validation:").size())};
+            }
+            return crow::response{crow::INTERNAL_SERVER_ERROR, "create match failed"};
+        }
+
+        // Success -> 201 Created, return the new id
+        nlohmann::json resp = { {"id", result.value()} };
+        crow::response res(resp.dump());
+        res.code = crow::CREATED;
+        res.add_header(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE);
+        res.add_header("Location",
+            "/tournaments/" + tournamentId + "/matches/" + result.value());
+        return res;
+    } catch (...) {
+        return crow::response{crow::INTERNAL_SERVER_ERROR, "create match failed"};
+    }
+}
 // Route bindings (keep them at global scope, after method definitions)
 REGISTER_ROUTE(MatchController, ReadAll,    "/tournaments/<string>/matches",           "GET"_method)
 REGISTER_ROUTE(MatchController, ReadById,   "/tournaments/<string>/matches/<string>", "GET"_method)
 REGISTER_ROUTE(MatchController, PatchScore, "/tournaments/<string>/matches/<string>", "PATCH"_method)
+REGISTER_ROUTE(MatchController, Create,     "/tournaments/<string>/matches",           "POST"_method)
