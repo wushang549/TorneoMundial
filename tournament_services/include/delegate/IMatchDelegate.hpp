@@ -1,4 +1,4 @@
-//IMatchDelegate.hpp
+// IMatchDelegate.hpp
 #pragma once
 #include <memory>
 #include <optional>
@@ -25,7 +25,7 @@ public:
     UpdateScore(const std::string& tournamentId, const std::string& matchId,
                 int home, int visitor) = 0;
 
-    // Create endpoint support
+    // NEW: Create a match and return generated id
     virtual std::expected<std::string, std::string>
     Create(const std::string& tournamentId, const nlohmann::json& body) = 0;
 };
