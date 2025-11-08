@@ -4,6 +4,7 @@
 #include <random>
 #include <stdexcept>
 #include <algorithm>
+#include <regex>
 
 #include "persistence/repository/IMatchRepository.hpp"
 #include "delegate/ITournamentDelegate.hpp"
@@ -13,6 +14,11 @@ using std::string_view;
 
 // Simple score validator for the 0..10 rule used across the project.
 static inline bool is_valid_score(int s) noexcept { return s >= 0 && s <= 10; }
+namespace {
+    const std::regex UUID_RE_DELEG(
+        R"(^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$)"
+    );
+}
 
 MatchDelegate::MatchDelegate(std::shared_ptr<IMatchRepository> matchRepo,
                              std::shared_ptr<ITournamentDelegate> tournamentDel)

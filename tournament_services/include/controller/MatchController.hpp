@@ -3,19 +3,9 @@
 #include <memory>
 #include <string>
 #include "crow.h"
-
+#include "controller/MatchController.hpp"
+#include "delegate/IMatchDelegate.hpp"
 // Forward declaration: the controller depends on the delegate interface,
-// but we don't need the full definition in this header.
-class IMatchDelegate;
-
-/**
- * HTTP controller for Match endpoints.
- * - Parses/validates HTTP inputs
- * - Maps delegate results to HTTP responses
- * - Serializes responses to JSON
- *
- * Business logic remains in the delegate layer.
- */
 class MatchController {
     std::shared_ptr<IMatchDelegate> matchDelegate;
 
