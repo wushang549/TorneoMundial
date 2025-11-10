@@ -12,7 +12,7 @@ using ::testing::StrictMock;
 using ::testing::Return;
 using nlohmann::json;
 
-/* 
+/*
    Helpers
     */
 static crow::request req(const std::string& b){ crow::request r; r.body=b; return r; }
@@ -26,10 +26,10 @@ static std::shared_ptr<domain::Tournament> mkT(
   return p;
 }
 
-/* 
-   Al método que procesa la creación de torneo, validar la transformación 
-   de JSON al objeto de dominio Tournament y validar que el valor que se 
-   le transfiera a TournamentDelegate es el esperado. 
+/*
+   Al método que procesa la creación de torneo, validar la transformación
+   de JSON al objeto de dominio Tournament y validar que el valor que se
+   le transfiera a TournamentDelegate es el esperado.
    Simular error de inserción (nombre duplicado) y validar respuesta HTTP 409.
     */
 TEST(TournamentControllerTest, Create_NameDuplicate_Returns409) {
@@ -42,15 +42,15 @@ TEST(TournamentControllerTest, Create_NameDuplicate_Returns409) {
     t->Id() = "T1";
     EXPECT_CALL(*del, ReadAll()).WillOnce(Return(std::vector{t}));
 
-    crow::request req; 
+    crow::request req;
     req.body = R"({"name":"NFL 2025","format":{"numberOfGroups":2,"maxTeamsPerGroup":4,"type":"NFL"}})";
     auto res = ctl.CreateTournament(req);
     EXPECT_EQ(res.code, crow::CONFLICT);
 }
 
-/* 
-   Al método que procesa la búsqueda de un torneo por ID, validar que el 
-   valor que se le transfiera a TournamentDelegate es el esperado. 
+/*
+   Al método que procesa la búsqueda de un torneo por ID, validar que el
+   valor que se le transfiera a TournamentDelegate es el esperado.
    Simular el resultado con un objeto y validar respuesta HTTP 200.
     */
 TEST(TournamentControllerTest, ReadById_EmbedsGroups) {
@@ -76,8 +76,8 @@ TEST(TournamentControllerTest, ReadById_EmbedsGroups) {
     EXPECT_THAT(std::string(res.body), ::testing::HasSubstr(R"("groups")"));
 }
 
-/* 
-   Al método que procesa la creación de torneo, validar que el cuerpo JSON 
+/*
+   Al método que procesa la creación de torneo, validar que el cuerpo JSON
    sea correcto. Simular JSON inválido y validar respuesta HTTP 400.
     */
 TEST(TournamentControllerTest, Create_InvalidJson_400) {
@@ -87,8 +87,8 @@ TEST(TournamentControllerTest, Create_InvalidJson_400) {
   EXPECT_EQ(res.code, crow::BAD_REQUEST);
 }
 
-/* 
-   Al método que procesa la creación de torneo, validar campos requeridos. 
+/*
+   Al método que procesa la creación de torneo, validar campos requeridos.
    Simular falta de atributo 'name' y validar respuesta HTTP 400.
     */
 TEST(TournamentControllerTest, Create_MissingName_400) {
@@ -98,9 +98,9 @@ TEST(TournamentControllerTest, Create_MissingName_400) {
   EXPECT_EQ(res.code, crow::BAD_REQUEST);
 }
 
-/* 
-   Al método que procesa la creación de torneo, validar la transformación 
-   de JSON al objeto de dominio Tournament y el flujo exitoso. 
+/*
+   Al método que procesa la creación de torneo, validar la transformación
+   de JSON al objeto de dominio Tournament y el flujo exitoso.
    Validar que la respuesta sea HTTP 201 con location y cuerpo JSON.
     */
 TEST(TournamentControllerTest, Create_Success_201_LocationBodyCT) {
@@ -121,7 +121,7 @@ TEST(TournamentControllerTest, Create_Success_201_LocationBodyCT) {
   EXPECT_EQ(j.at("id"), "t-001");
 }
 
-/* 
+/*
    Al método que procesa la búsqueda de torneos.
    Simular el resultado con una lista vacía y validar respuesta HTTP 200.
     */
@@ -137,8 +137,8 @@ TEST(TournamentControllerTest, ReadAll_Empty_200_Array) {
   EXPECT_EQ(res.body, "[]");
 }
 
-/* 
-   Al método que procesa la búsqueda de torneos. 
+/*
+   Al método que procesa la búsqueda de torneos.
    Simular el resultado con una lista de objetos y validar respuesta HTTP 200.
     */
 TEST(TournamentControllerTest, ReadAll_Two_200_Array) {
@@ -157,9 +157,9 @@ TEST(TournamentControllerTest, ReadAll_Two_200_Array) {
   EXPECT_EQ(arr[1].at("format").at("type"), "NFL");
 }
 
-/* 
-   Al método que procesa la búsqueda de un torneo por ID, validar que el 
-   valor que se le transfiera a TournamentDelegate es el esperado. 
+/*
+   Al método que procesa la búsqueda de un torneo por ID, validar que el
+   valor que se le transfiera a TournamentDelegate es el esperado.
    Simular el resultado nulo y validar respuesta HTTP 404.
     */
 TEST(TournamentControllerTest, ReadById_NotFound_404) {
@@ -171,10 +171,10 @@ TEST(TournamentControllerTest, ReadById_NotFound_404) {
   EXPECT_EQ(res.code, crow::NOT_FOUND);
 }
 
-/* 
-   Al método que procesa la actualización de un torneo, validar la 
-   transformación de JSON al objeto de dominio Tournament y que el 
-   valor transferido al TournamentDelegate sea el esperado. 
+/*
+   Al método que procesa la actualización de un torneo, validar la
+   transformación de JSON al objeto de dominio Tournament y que el
+   valor transferido al TournamentDelegate sea el esperado.
    Simular JSON inválido y validar respuesta HTTP 400.
     */
 TEST(TournamentControllerTest, Update_InvalidJson_400) {
@@ -184,10 +184,10 @@ TEST(TournamentControllerTest, Update_InvalidJson_400) {
   EXPECT_EQ(res.code, crow::BAD_REQUEST);
 }
 
-/* 
-   Al método que procesa la actualización de un torneo, validar la 
-   transformación de JSON al objeto de dominio Tournament y que el 
-   valor transferido a TournamentDelegate sea el esperado. 
+/*
+   Al método que procesa la actualización de un torneo, validar la
+   transformación de JSON al objeto de dominio Tournament y que el
+   valor transferido a TournamentDelegate sea el esperado.
    Simular ID no encontrado y validar respuesta HTTP 404.
     */
 TEST(TournamentControllerTest, Update_NotFound_404) {
@@ -198,10 +198,10 @@ TEST(TournamentControllerTest, Update_NotFound_404) {
   EXPECT_EQ(res.code, crow::NOT_FOUND);
 }
 
-/* 
-   Al método que procesa la actualización de un torneo, validar la 
-   transformación de JSON al objeto de dominio Tournament y que el 
-   valor transferido a TournamentDelegate sea el esperado. 
+/*
+   Al método que procesa la actualización de un torneo, validar la
+   transformación de JSON al objeto de dominio Tournament y que el
+   valor transferido a TournamentDelegate sea el esperado.
    Simular resultado exitoso y validar respuesta HTTP 204.
     */
 TEST(TournamentControllerTest, Update_Success_204) {
@@ -212,8 +212,8 @@ TEST(TournamentControllerTest, Update_Success_204) {
   EXPECT_EQ(res.code, crow::NO_CONTENT);
 }
 
-/* 
-   Caso adicional, al método que procesa la eliminación de un torneo, 
+/*
+   Caso adicional, al método que procesa la eliminación de un torneo,
    validar flujo cuando el TournamentDelegate no encuentra el recurso.
    Simular ID inexistente y validar respuesta HTTP 404.
     */
@@ -225,8 +225,8 @@ TEST(TournamentControllerTest, Delete_NotFound_404) {
   EXPECT_EQ(res.code, crow::NOT_FOUND);
 }
 
-/* 
-   Caso adicional, al método que procesa la eliminación de un torneo, 
+/*
+   Caso adicional, al método que procesa la eliminación de un torneo,
    validar flujo exitoso. Simular eliminación exitosa y validar respuesta HTTP 204.
     */
 TEST(TournamentControllerTest, Delete_Success_204) {
@@ -235,4 +235,92 @@ TEST(TournamentControllerTest, Delete_Success_204) {
   TournamentController c{mock, {}};
   auto res = c.DeleteTournament("D2");
   EXPECT_EQ(res.code, crow::NO_CONTENT);
+}
+// === Extra coverage for TournamentController error branches and esc(id) ===
+
+TEST(TournamentControllerTest, Create_ReadAllUnexpected_500) {
+  auto mock = std::make_shared<StrictMock<TournamentDelegateMock>>();
+  TournamentController c{mock, {}};
+
+  EXPECT_CALL(*mock, ReadAll())
+      .WillOnce(Return(std::unexpected(std::string{"db list error"})));
+
+  auto res = c.CreateTournament(req(R"({"name":"X","format":{"numberOfGroups":1,"maxTeamsPerGroup":4,"type":"NFL"}})"));
+  EXPECT_EQ(res.code, crow::INTERNAL_SERVER_ERROR);
+  EXPECT_THAT(std::string(res.body), ::testing::HasSubstr("db list error"));
+}
+
+TEST(TournamentControllerTest, Create_DelegateCreateUnexpected_500) {
+  auto mock = std::make_shared<StrictMock<TournamentDelegateMock>>();
+  EXPECT_CALL(*mock, ReadAll())
+      .WillOnce(Return(std::vector<std::shared_ptr<domain::Tournament>>{}));
+  EXPECT_CALL(*mock, CreateTournament(::testing::_))
+      .WillOnce(Return(std::unexpected(std::string{"insert fail"})));
+
+  TournamentController c{mock, {}};
+  auto res = c.CreateTournament(req(R"({"name":"X","format":{"numberOfGroups":1,"maxTeamsPerGroup":4,"type":"NFL"}})"));
+  EXPECT_EQ(res.code, crow::INTERNAL_SERVER_ERROR);
+  EXPECT_THAT(std::string(res.body), ::testing::HasSubstr("insert fail"));
+}
+
+TEST(TournamentControllerTest, Create_Success_EscapesIdInBody) {
+  auto mock = std::make_shared<StrictMock<TournamentDelegateMock>>();
+  EXPECT_CALL(*mock, ReadAll())
+      .WillOnce(Return(std::vector<std::shared_ptr<domain::Tournament>>{}));
+  // id with quotes, backslash and newline to hit esc() branches
+  std::string specialId = "t-\"q\\n";
+  EXPECT_CALL(*mock, CreateTournament(::testing::_))
+      .WillOnce(Return(specialId));
+
+  TournamentController c{mock, {}};
+  auto res = c.CreateTournament(req(R"({"name":"Esc","format":{"numberOfGroups":1,"maxTeamsPerGroup":4,"type":"NFL"}})"));
+  EXPECT_EQ(res.code, crow::CREATED);
+  // header carries the raw id
+  EXPECT_EQ(res.get_header_value("location"), specialId);
+  // body is valid JSON and preserves the same id value
+  nlohmann::json j = nlohmann::json::parse(res.body);
+  EXPECT_EQ(j.at("id").get<std::string>(), specialId);
+}
+
+TEST(TournamentControllerTest, ReadAll_Unexpected_500) {
+  auto mock = std::make_shared<StrictMock<TournamentDelegateMock>>();
+  EXPECT_CALL(*mock, ReadAll())
+      .WillOnce(Return(std::unexpected(std::string{"boom"})));
+  TournamentController c{mock, {}};
+  auto res = c.ReadAll();
+  EXPECT_EQ(res.code, crow::INTERNAL_SERVER_ERROR);
+  EXPECT_THAT(std::string(res.body), ::testing::HasSubstr("boom"));
+}
+
+TEST(TournamentControllerTest, ReadById_Unexpected_500) {
+  auto del = std::make_shared<StrictMock<TournamentDelegateMock>>();
+  auto grepo = std::make_shared<NiceMock<GroupRepositoryMock>>();
+  EXPECT_CALL(*del, ReadById("E1"))
+      .WillOnce(Return(std::unexpected(std::string{"err"})));
+  TournamentController ctl{del, grepo};
+  auto res = ctl.ReadById("E1");
+  EXPECT_EQ(res.code, crow::INTERNAL_SERVER_ERROR);
+  EXPECT_THAT(std::string(res.body), ::testing::HasSubstr("err"));
+}
+
+TEST(TournamentControllerTest, Update_DelegateUnexpected_500) {
+  auto mock = std::make_shared<StrictMock<TournamentDelegateMock>>();
+  EXPECT_CALL(*mock, UpdateTournament("U1", ::testing::_))
+      .WillOnce(Return(std::unexpected(std::string{"upd fail"})));
+  TournamentController c{mock, {}};
+  auto res = c.UpdateTournament(
+      req(R"({"name":"N","format":{"numberOfGroups":1,"maxTeamsPerGroup":4,"type":"NFL"}})"),
+      "U1");
+  EXPECT_EQ(res.code, crow::INTERNAL_SERVER_ERROR);
+  EXPECT_THAT(std::string(res.body), ::testing::HasSubstr("upd fail"));
+}
+
+TEST(TournamentControllerTest, Delete_DelegateUnexpected_500) {
+  auto mock = std::make_shared<StrictMock<TournamentDelegateMock>>();
+  EXPECT_CALL(*mock, DeleteTournament("DX"))
+      .WillOnce(Return(std::unexpected(std::string{"del fail"})));
+  TournamentController c{mock, {}};
+  auto res = c.DeleteTournament("DX");
+  EXPECT_EQ(res.code, crow::INTERNAL_SERVER_ERROR);
+  EXPECT_THAT(std::string(res.body), ::testing::HasSubstr("del fail"));
 }
