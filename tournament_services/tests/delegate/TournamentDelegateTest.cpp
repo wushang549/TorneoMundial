@@ -148,3 +148,35 @@ TEST(TournamentDelegateTest, DeleteTournament_Throws_ReturnsUnexpected) {
     EXPECT_THAT(result.error(), ::testing::HasSubstr("fk"));
 }
 
+// UpdateTournament: id not found -> returns false and does not call Update
+TEST(TournamentDelegateTest, UpdateTournament_NotFound_ReturnsFalse) {
+    auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
+    EXPECT_CALL(*repo, ReadById("U404")).WillOnce(Return(std::shared_ptr<domain::Tournament>{}));
+    EXPECT_CALL(*repo, Update(::testing::_)).Times(0);
+
+    TournamentDelegate sut{repo};
+    auto r = sut.UpdateTournament("U404", domain::Tournament{"X", {1,4,domain::TournamentType::NFL}});
+    ASSERT_TRUE(r.has_value());
+    EXPECT_FALSE(r.value());
+}
+// DeleteTournament: id not found -> returns false and does not call Delete
+TEST(TournamentDelegateTest, DeleteTournament_NotFound_ReturnsFalse) {
+    auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
+    EXPECT_CALL(*repo, ReadById("D404")).WillOnce(Return(std::shared_ptr<domain::Tournament>{}));
+    EXPECT_CALL(*repo, Delete(::testing::_)).Times(0);
+
+    TournamentDelegate sut{repo};
+    auto r = sut.DeleteTournament("D404");
+    ASSERT_TRUE(r.has_value());
+    EXPECT_FALSE(r.value());
+}
+// (Opcional) ReadById: repo returns nullptr -> expected has value but pointer is null
+TEST(TournamentDelegateTest, ReadById_ReturnsNullptrWhenMissing) {
+    auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
+    EXPECT_CALL(*repo, ReadById("T404")).WillOnce(Return(std::shared_ptr<domain::Tournament>{}));
+
+    TournamentDelegate sut{repo};
+    auto r = sut.ReadById("T404");
+    ASSERT_TRUE(r.has_value());
+    EXPECT_EQ(r.value(), nullptr);
+}

@@ -41,45 +41,53 @@
 #include "controller/TournamentController.hpp"
 #include "controller/GroupController.hpp"
 
+// -------- Matches (NEW) --------
+#include "persistence/repository/IMatchRepository.hpp"
+#include "persistence/repository/MatchRepository.hpp"
+#include "delegate/IMatchDelegate.hpp"
+#include "delegate/MatchDelegate.hpp"
+#include "controller/MatchController.hpp"
+// --------------------------------
+
 namespace config {
 
     inline std::shared_ptr<Hypodermic::Container> containerSetup() {
         Hypodermic::ContainerBuilder builder;
 
-        // ---- Load configuration.json
+        // Load configuration.json
         std::ifstream file("configuration.json");
         nlohmann::json configuration;
         file >> configuration;
 
-        // ---- RunConfiguration
+        // RunConfiguration
         auto appConfig = std::make_shared<RunConfiguration>(configuration["runConfig"]);
         builder.registerInstance(appConfig);
 
-        // ---- Postgres connection provider
+        // Postgres connection provider
         auto pgProvider = std::make_shared<PostgresConnectionProvider>(
             configuration["databaseConfig"]["connectionString"].get<std::string>(),
             configuration["databaseConfig"]["poolSize"].get<size_t>()
         );
         builder.registerInstance(pgProvider).as<IDbConnectionProvider>();
 
-        // ---- Messaging (ActiveMQ)
+        // Messaging (ActiveMQ)
         builder.registerType<ConnectionManager>()
             .onActivated([configuration](Hypodermic::ComponentContext&, const std::shared_ptr<ConnectionManager>& instance) {
                 instance->initialize(configuration["activemq"]["broker-url"].get<std::string>());
             })
             .singleInstance();
 
-        // Producer “tournamentAddTeamQueue” (ajusta si usas más)
+        // Producer “tournamentAddTeamQueue”
         builder.registerType<QueueMessageProducer>()
                .named("tournamentAddTeamQueue");
 
-        // Resolver de colas
+        // Queue resolver
         builder.registerType<QueueResolver>()
                .as<IResolver<IQueueMessageProducer>>()
                .named("queueResolver")
                .singleInstance();
 
-        // ---- Repositories
+        // ----- Repositories -----
         builder.registerType<TeamRepository>()
                .as<IRepository<domain::Team, std::string_view>>()
                .singleInstance();
@@ -89,10 +97,15 @@ namespace config {
                .singleInstance();
 
         builder.registerType<TournamentRepository>()
-               .as<IRepository<domain::Tournament, std::string>>()   // NOTE: std::string as Id
+               .as<IRepository<domain::Tournament, std::string>>()
                .singleInstance();
 
-        // ---- Delegates
+        // Matches repo (NEW)
+        builder.registerType<MatchRepository>()
+               .as<IMatchRepository>()
+               .singleInstance();
+
+        // ----- Delegates -----
         builder.registerType<TeamDelegate>()
                .as<ITeamDelegate>()
                .singleInstance();
@@ -105,7 +118,11 @@ namespace config {
                .as<ITournamentDelegate>()
                .singleInstance();
 
-        // ---- Controllers
+        // Matches delegate (NEW)
+        builder.registerType<MatchDelegate>()
+               .as<IMatchDelegate>();
+
+        // ----- Controllers -----
         builder.registerType<TeamController>()
                .singleInstance();
 
@@ -115,24 +132,33 @@ namespace config {
         builder.registerType<TournamentController>()
                .singleInstance();
 
+        // Matches controller (NEW)
+        builder.registerType<MatchController>()
+               .singleInstance();
+
         return builder.build();
     }
 
     inline std::shared_ptr<TeamController>
- makeTeamController(const std::shared_ptr<Hypodermic::Container>& c) {
-        return c->resolve<TeamController>();  // <-- NO pidas shared_ptr<T>, solo T
+    makeTeamController(const std::shared_ptr<Hypodermic::Container>& c) {
+        return c->resolve<TeamController>();
     }
 
     inline std::shared_ptr<TournamentController>
     makeTournamentController(const std::shared_ptr<Hypodermic::Container>& c) {
-        return c->resolve<TournamentController>();  // idem
+        return c->resolve<TournamentController>();
     }
 
     inline std::shared_ptr<GroupController>
     makeGroupController(const std::shared_ptr<Hypodermic::Container>& c) {
-        return c->resolve<GroupController>();  // idem
+        return c->resolve<GroupController>();
     }
 
+    // Optional factory for MatchController
+    inline std::shared_ptr<MatchController>
+    makeMatchController(const std::shared_ptr<Hypodermic::Container>& c) {
+        return c->resolve<MatchController>();
+    }
 
 } // namespace config
 

@@ -300,3 +300,303 @@ TEST(GroupDelegateTest, AddTeamToGroup_GroupFull_ReturnsError) {
   ASSERT_FALSE(r.has_value());
   EXPECT_EQ(r.error(), "Group is full");
 }
+// ---- CreateGroup: team missing, team already in tournament ----
+TEST(GroupDelegateTest, CreateGroup_TeamMissing_ReturnsError) {
+  auto trepo = std::make_shared<StrictMock<TournamentRepositoryMock>>();
+  auto grepo = std::make_shared<StrictMock<GroupRepositoryMock>>();
+  auto teamr = std::make_shared<StrictMock<TeamRepositoryMock>>();
+
+  auto t = mkT("T1","Tour",2,4,domain::TournamentType::NFL);
+  EXPECT_CALL(*trepo, ReadById("T1")).WillOnce(Return(t));
+  // first team does not exist
+  EXPECT_CALL(*teamr, ReadById("E404"sv)).WillOnce(Return(nullptr));
+
+  GroupDelegate sut{trepo, grepo, teamr};
+  domain::Group g; g.Name() = "G"; g.Teams() = { {"E404","Ghost"} };
+  auto r = sut.CreateGroup("T1", g);
+  ASSERT_FALSE(r.has_value());
+  EXPECT_EQ(r.error(), "Team doesn't exist");
+}
+
+TEST(GroupDelegateTest, CreateGroup_TeamAlreadyInTournament_ReturnsError) {
+  auto trepo = std::make_shared<StrictMock<TournamentRepositoryMock>>();
+  auto grepo = std::make_shared<StrictMock<GroupRepositoryMock>>();
+  auto teamr = std::make_shared<StrictMock<TeamRepositoryMock>>();
+
+  auto t = mkT("T1","Tour",2,4,domain::TournamentType::NFL);
+  EXPECT_CALL(*trepo, ReadById("T1")).WillOnce(Return(t));
+  EXPECT_CALL(*teamr, ReadById("E1"sv)).WillOnce(Return(mkTeam("E1","X")));
+  // already present in tournament
+  EXPECT_CALL(*grepo, FindByTournamentIdAndTeamId("T1"sv,"E1"sv))
+      .WillOnce(Return(mkG("GZ","Z","T1")));
+
+  GroupDelegate sut{trepo, grepo, teamr};
+  domain::Group g; g.Name()="G"; g.Teams()={{"E1","X"}};
+  auto r = sut.CreateGroup("T1", g);
+  ASSERT_FALSE(r.has_value());
+  EXPECT_THAT(r.error(), ::testing::HasSubstr("Team E1 already exists in tournament T1"));
+}
+
+// ---- GetGroups: tournament missing and success pass-through ----
+TEST(GroupDelegateTest, GetGroups_TournamentMissing_ReturnsError) {
+  auto trepo = std::make_shared<StrictMock<TournamentRepositoryMock>>();
+  auto grepo = std::make_shared<NiceMock<GroupRepositoryMock>>();
+  auto teamr = std::make_shared<NiceMock<TeamRepositoryMock>>();
+
+  EXPECT_CALL(*trepo, ReadById("TX")).WillOnce(Return(nullptr));
+  GroupDelegate sut{trepo, grepo, teamr};
+  auto r = sut.GetGroups("TX");
+  ASSERT_FALSE(r.has_value());
+  EXPECT_EQ(r.error(), "Tournament doesn't exist");
+}
+
+TEST(GroupDelegateTest, GetGroups_Success_ReturnsVector) {
+  auto trepo = std::make_shared<StrictMock<TournamentRepositoryMock>>();
+  auto grepo = std::make_shared<StrictMock<GroupRepositoryMock>>();
+  auto teamr = std::make_shared<NiceMock<TeamRepositoryMock>>();
+
+  EXPECT_CALL(*trepo, ReadById("T2")).WillOnce(Return(mkT("T2","Tour",1,3,domain::TournamentType::NFL)));
+  auto g1 = mkG("G1","A","T2");
+  auto g2 = mkG("G2","B","T2");
+  EXPECT_CALL(*grepo, FindByTournamentId("T2"sv))
+      .WillOnce(Return(std::vector{g1, g2}));
+
+  GroupDelegate sut{trepo, grepo, teamr};
+  auto r = sut.GetGroups("T2");
+  ASSERT_TRUE(r.has_value());
+  ASSERT_EQ(r->size(), 2u);
+}
+
+// ---- GetGroup: tournament missing ----
+TEST(GroupDelegateTest, GetGroup_TournamentMissing_ReturnsError) {
+  auto trepo = std::make_shared<StrictMock<TournamentRepositoryMock>>();
+  auto grepo = std::make_shared<NiceMock<GroupRepositoryMock>>();
+  auto teamr = std::make_shared<NiceMock<TeamRepositoryMock>>();
+
+  EXPECT_CALL(*trepo, ReadById("TZ")).WillOnce(Return(nullptr));
+  GroupDelegate sut{trepo, grepo, teamr};
+  auto r = sut.GetGroup("TZ","G1");
+  ASSERT_FALSE(r.has_value());
+  EXPECT_EQ(r.error(), "Tournament doesn't exist");
+}
+
+// ---- UpdateGroup: input validation and repo update failure ----
+TEST(GroupDelegateTest, UpdateGroup_IdRequiredAndNameRequired) {
+  auto trepo = std::make_shared<NiceMock<TournamentRepositoryMock>>();
+  auto grepo = std::make_shared<NiceMock<GroupRepositoryMock>>();
+  auto teamr = std::make_shared<NiceMock<TeamRepositoryMock>>();
+  GroupDelegate sut{trepo, grepo, teamr};
+
+  domain::Group noId; noId.Name()="N";
+  auto r1 = sut.UpdateGroup("T1", noId);
+  ASSERT_FALSE(r1.has_value());
+  EXPECT_EQ(r1.error(), "Group id required");
+
+  domain::Group noName; noName.Id()="G1";
+  auto r2 = sut.UpdateGroup("T1", noName);
+  ASSERT_FALSE(r2.has_value());
+  EXPECT_EQ(r2.error(), "Group name required");
+}
+
+TEST(GroupDelegateTest, UpdateGroup_UpdateReturnsEmpty_ReturnsError) {
+  auto trepo = std::make_shared<StrictMock<TournamentRepositoryMock>>();
+  auto grepo = std::make_shared<StrictMock<GroupRepositoryMock>>();
+  auto teamr = std::make_shared<NiceMock<TeamRepositoryMock>>();
+  GroupDelegate sut{trepo, grepo, teamr};
+
+  domain::Group in; in.Id()="G1"; in.Name()="N";
+  EXPECT_CALL(*trepo, ReadById("T1")).WillOnce(Return(mkT("T1","T",1,2,domain::TournamentType::NFL)));
+  EXPECT_CALL(*grepo, FindByTournamentIdAndGroupId("T1"sv,"G1"sv))
+      .WillOnce(Return(mkG("G1","Old","T1")));
+  EXPECT_CALL(*grepo, Update(::testing::_))
+      .WillOnce(Return(std::string{})); // simulate failure
+
+  auto r = sut.UpdateGroup("T1", in);
+  ASSERT_FALSE(r.has_value());
+  EXPECT_EQ(r.error(), "Failed to update group");
+}
+
+// ---- RemoveGroup: tournament/group missing and success ----
+TEST(GroupDelegateTest, RemoveGroup_TournamentMissing_ReturnsError) {
+  auto trepo = std::make_shared<StrictMock<TournamentRepositoryMock>>();
+  auto grepo = std::make_shared<NiceMock<GroupRepositoryMock>>();
+  auto teamr = std::make_shared<NiceMock<TeamRepositoryMock>>();
+
+  EXPECT_CALL(*trepo, ReadById("T0")).WillOnce(Return(nullptr));
+  GroupDelegate sut{trepo, grepo, teamr};
+  auto r = sut.RemoveGroup("T0","G1");
+  ASSERT_FALSE(r.has_value());
+  EXPECT_EQ(r.error(), "Tournament doesn't exist");
+}
+
+TEST(GroupDelegateTest, RemoveGroup_GroupMissing_ReturnsError) {
+  auto trepo = std::make_shared<StrictMock<TournamentRepositoryMock>>();
+  auto grepo = std::make_shared<StrictMock<GroupRepositoryMock>>();
+  auto teamr = std::make_shared<NiceMock<TeamRepositoryMock>>();
+
+  EXPECT_CALL(*trepo, ReadById("T1")).WillOnce(Return(mkT("T1","T",1,2,domain::TournamentType::NFL)));
+  EXPECT_CALL(*grepo, FindByTournamentIdAndGroupId("T1"sv,"G404"sv))
+      .WillOnce(Return(std::shared_ptr<domain::Group>{}));
+
+  GroupDelegate sut{trepo, grepo, teamr};
+  auto r = sut.RemoveGroup("T1","G404");
+  ASSERT_FALSE(r.has_value());
+  EXPECT_EQ(r.error(), "Group doesn't exist");
+}
+
+// ---- UpdateTeams: all error branches and success ----
+TEST(GroupDelegateTest, UpdateTeams_TournamentMissing_ReturnsError) {
+  auto trepo = std::make_shared<StrictMock<TournamentRepositoryMock>>();
+  auto grepo = std::make_shared<NiceMock<GroupRepositoryMock>>();
+  auto teamr = std::make_shared<NiceMock<TeamRepositoryMock>>();
+
+  EXPECT_CALL(*trepo, ReadById("T0")).WillOnce(Return(nullptr));
+  GroupDelegate sut{trepo, grepo, teamr};
+  auto r = sut.UpdateTeams("T0","G1", std::vector<domain::Team>{{"E1","A"}});
+  ASSERT_FALSE(r.has_value());
+  EXPECT_EQ(r.error(), "Tournament doesn't exist");
+}
+
+TEST(GroupDelegateTest, UpdateTeams_GroupMissing_ReturnsError) {
+  auto trepo = std::make_shared<StrictMock<TournamentRepositoryMock>>();
+  auto grepo = std::make_shared<StrictMock<GroupRepositoryMock>>();
+  auto teamr = std::make_shared<NiceMock<TeamRepositoryMock>>();
+
+  EXPECT_CALL(*trepo, ReadById("T1")).WillOnce(Return(mkT("T1","T",1,2,domain::TournamentType::NFL)));
+  EXPECT_CALL(*grepo, FindByTournamentIdAndGroupId("T1"sv,"G404"sv))
+      .WillOnce(Return(std::shared_ptr<domain::Group>{}));
+
+  GroupDelegate sut{trepo, grepo, teamr};
+  auto r = sut.UpdateTeams("T1","G404", std::vector<domain::Team>{{"E1","A"}});
+  ASSERT_FALSE(r.has_value());
+  EXPECT_EQ(r.error(), "Group doesn't exist");
+}
+
+TEST(GroupDelegateTest, UpdateTeams_ExceedsCapacity_ReturnsError) {
+  auto trepo = std::make_shared<StrictMock<TournamentRepositoryMock>>();
+  auto grepo = std::make_shared<StrictMock<GroupRepositoryMock>>();
+  auto teamr = std::make_shared<NiceMock<TeamRepositoryMock>>();
+
+  auto t = mkT("T1","T",1,2,domain::TournamentType::NFL);
+  EXPECT_CALL(*trepo, ReadById("T1")).WillOnce(Return(t));
+  auto g = mkG("G1","A","T1"); g->Teams().push_back(domain::Team{"E0","X"}); // current = 1
+  EXPECT_CALL(*grepo, FindByTournamentIdAndGroupId("T1"sv,"G1"sv)).WillOnce(Return(g));
+
+  GroupDelegate sut{trepo, grepo, teamr};
+  // incoming = 2, total = 3 > max(2)
+  auto r = sut.UpdateTeams("T1","G1", std::vector<domain::Team>{{"E1","A"},{"E2","B"}});
+  ASSERT_FALSE(r.has_value());
+  EXPECT_EQ(r.error(), "Group at max capacity");
+}
+
+TEST(GroupDelegateTest, UpdateTeams_DuplicateInTournament_ReturnsError) {
+  auto trepo = std::make_shared<StrictMock<TournamentRepositoryMock>>();
+  auto grepo = std::make_shared<StrictMock<GroupRepositoryMock>>();
+  auto teamr = std::make_shared<NiceMock<TeamRepositoryMock>>();
+
+  auto t = mkT("T1","T",1,3,domain::TournamentType::NFL);
+  EXPECT_CALL(*trepo, ReadById("T1")).WillOnce(Return(t));
+  auto g = mkG("G1","A","T1"); // current = 0
+  EXPECT_CALL(*grepo, FindByTournamentIdAndGroupId("T1"sv,"G1"sv)).WillOnce(Return(g));
+  EXPECT_CALL(*grepo, FindByTournamentIdAndTeamId("T1"sv,"E1"sv))
+      .WillOnce(Return(mkG("Gx","x","T1"))); // duplicate found
+
+  GroupDelegate sut{trepo, grepo, teamr};
+  auto r = sut.UpdateTeams("T1","G1", std::vector<domain::Team>{{"E1","A"}});
+  ASSERT_FALSE(r.has_value());
+  EXPECT_THAT(r.error(), ::testing::HasSubstr("Team E1 already exists in tournament T1"));
+}
+
+TEST(GroupDelegateTest, UpdateTeams_TeamMissing_ReturnsError) {
+  auto trepo = std::make_shared<StrictMock<TournamentRepositoryMock>>();
+  auto grepo = std::make_shared<StrictMock<GroupRepositoryMock>>();
+  auto teamr = std::make_shared<StrictMock<TeamRepositoryMock>>();
+
+  auto t = mkT("T1","T",1,3,domain::TournamentType::NFL);
+  EXPECT_CALL(*trepo, ReadById("T1")).WillOnce(Return(t));
+  auto g = mkG("G1","A","T1");
+  EXPECT_CALL(*grepo, FindByTournamentIdAndGroupId("T1"sv,"G1"sv)).WillOnce(Return(g));
+  EXPECT_CALL(*grepo, FindByTournamentIdAndTeamId("T1"sv,"E404"sv))
+      .WillOnce(Return(nullptr));
+  EXPECT_CALL(*teamr, ReadById("E404"sv))
+      .WillOnce(Return(nullptr)); // missing
+
+  GroupDelegate sut{trepo, grepo, teamr};
+  auto r = sut.UpdateTeams("T1","G1", std::vector<domain::Team>{{"E404","X"}});
+  ASSERT_FALSE(r.has_value());
+  EXPECT_EQ(r.error(), "Team E404 doesn't exist");
+}
+
+TEST(GroupDelegateTest, UpdateTeams_Success_AddsAllTeams) {
+  auto trepo = std::make_shared<StrictMock<TournamentRepositoryMock>>();
+  auto grepo = std::make_shared<StrictMock<GroupRepositoryMock>>();
+  auto teamr = std::make_shared<StrictMock<TeamRepositoryMock>>();
+
+  auto t = mkT("T1","T",1,4,domain::TournamentType::NFL);
+  EXPECT_CALL(*trepo, ReadById("T1")).WillOnce(Return(t));
+  auto g = mkG("G1","A","T1");
+  EXPECT_CALL(*grepo, FindByTournamentIdAndGroupId("T1"sv,"G1"sv))
+      .WillOnce(Return(g));
+  // no duplicates
+  EXPECT_CALL(*grepo, FindByTournamentIdAndTeamId("T1"sv,"E1"sv))
+      .WillOnce(Return(nullptr));
+  EXPECT_CALL(*grepo, FindByTournamentIdAndTeamId("T1"sv,"E2"sv))
+      .WillOnce(Return(nullptr));
+  // both teams exist
+  EXPECT_CALL(*teamr, ReadById("E1"sv)).WillOnce(Return(mkTeam("E1","A")));
+  EXPECT_CALL(*teamr, ReadById("E2"sv)).WillOnce(Return(mkTeam("E2","B")));
+  // both added
+  EXPECT_CALL(*grepo, UpdateGroupAddTeam("G1"sv, ::testing::_)).Times(2);
+
+  GroupDelegate sut{trepo, grepo, teamr};
+  auto r = sut.UpdateTeams("T1","G1", std::vector<domain::Team>{{"E1","A"},{"E2","B"}});
+  EXPECT_TRUE(r.has_value());
+}
+
+// ---- AddTeamToGroup: tournament/group missing and already exists ----
+TEST(GroupDelegateTest, AddTeamToGroup_TournamentMissing_ReturnsError) {
+  auto trepo = std::make_shared<StrictMock<TournamentRepositoryMock>>();
+  auto grepo = std::make_shared<NiceMock<GroupRepositoryMock>>();
+  auto teamr = std::make_shared<NiceMock<TeamRepositoryMock>>();
+
+  EXPECT_CALL(*trepo, ReadById("T0")).WillOnce(Return(nullptr));
+  GroupDelegate sut{trepo, grepo, teamr};
+  auto r = sut.AddTeamToGroup("T0","G1","E1");
+  ASSERT_FALSE(r.has_value());
+  EXPECT_EQ(r.error(), "Tournament doesn't exist");
+}
+
+TEST(GroupDelegateTest, AddTeamToGroup_GroupMissing_ReturnsError) {
+  auto trepo = std::make_shared<StrictMock<TournamentRepositoryMock>>();
+  auto grepo = std::make_shared<StrictMock<GroupRepositoryMock>>();
+  auto teamr = std::make_shared<NiceMock<TeamRepositoryMock>>();
+
+  EXPECT_CALL(*trepo, ReadById("T1")).WillOnce(Return(mkT("T1","T",1,2,domain::TournamentType::NFL)));
+  EXPECT_CALL(*grepo, FindByTournamentIdAndGroupId("T1"sv,"G404"sv))
+      .WillOnce(Return(std::shared_ptr<domain::Group>{}));
+
+  GroupDelegate sut{trepo, grepo, teamr};
+  auto r = sut.AddTeamToGroup("T1","G404","E1");
+  ASSERT_FALSE(r.has_value());
+  EXPECT_EQ(r.error(), "Group doesn't exist");
+}
+
+TEST(GroupDelegateTest, AddTeamToGroup_AlreadyExists_ReturnsError) {
+  auto trepo = std::make_shared<StrictMock<TournamentRepositoryMock>>();
+  auto grepo = std::make_shared<StrictMock<GroupRepositoryMock>>();
+  auto teamr = std::make_shared<StrictMock<TeamRepositoryMock>>();
+
+  auto t = mkT("T1","T",1,3,domain::TournamentType::NFL);
+  EXPECT_CALL(*trepo, ReadById("T1")).WillOnce(Return(t));
+  EXPECT_CALL(*grepo, FindByTournamentIdAndGroupId("T1"sv,"G1"sv))
+      .WillOnce(Return(mkG("G1","A","T1")));
+  EXPECT_CALL(*teamr, ReadById("E1"sv)).WillOnce(Return(mkTeam("E1","A")));
+  // duplicate in tournament
+  EXPECT_CALL(*grepo, FindByTournamentIdAndTeamId("T1"sv,"E1"sv))
+      .WillOnce(Return(mkG("GZ","Z","T1")));
+
+  GroupDelegate sut{trepo, grepo, teamr};
+  auto r = sut.AddTeamToGroup("T1","G1","E1");
+  ASSERT_FALSE(r.has_value());
+  EXPECT_THAT(r.error(), ::testing::HasSubstr("Team E1 already exists in tournament T1"));
+}

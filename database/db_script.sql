@@ -48,12 +48,34 @@ CREATE TABLE GROUPS (
 );
 CREATE UNIQUE INDEX tournament_group_unique_name_idx ON GROUPS (tournament_id,(document->>'name'));
 
+-- Matches table: stores per-match JSON document and links to its tournament
 CREATE TABLE MATCHES (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    document JSONB NOT NULL,
-    last_update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                         id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+                         tournament_id UUID NOT NULL REFERENCES TOURNAMENTS(id) ON DELETE CASCADE,
+                         document JSONB NOT NULL,
+                         last_update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Fast listing/filtering by tournament
+CREATE INDEX idx_matches_tournament ON MATCHES (tournament_id);
+
+-- Prevent exact duplicates for the same tournament/round/home/visitor
+-- (Note: this forbids A(home)-B(visitor) duplicates; if you want to also
+-- forbid B(home)-A(visitor) as the "same" game, we can add a trigger later.)
+CREATE UNIQUE INDEX match_unique_per_round_idx
+    ON MATCHES (
+                tournament_id,
+        (document->>'round'),
+        (document->'home'->>'id'),
+        (document->'visitor'->>'id')
+        );
+
+-- Keep JSON document consistent with the relational FK (helps catch bugs early)
+ALTER TABLE MATCHES
+    ADD CONSTRAINT matches_document_tournament_consistent
+        CHECK ( (document->>'tournamentId')::uuid = tournament_id );
+
 
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO tournament_svc;
 GRANT DELETE ON ALL TABLES IN SCHEMA public TO tournament_svc;

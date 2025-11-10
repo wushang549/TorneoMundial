@@ -1,6 +1,9 @@
 //
 // Created by root on 9/27/25.
 //
+
+//h0laafefewf
+
 #define JSON_CONTENT_TYPE "application/json"
 #define CONTENT_TYPE_HEADER "content-type"
 
@@ -131,8 +134,6 @@ crow::response TeamController::DeleteTeam(const std::string& teamId) const {
     }
 }
 
-REGISTER_ROUTE(TeamController, getTeam, "/teams/<string>", "GET"_method)
-REGISTER_ROUTE(TeamController, getAllTeams, "/teams", "GET"_method)
-REGISTER_ROUTE(TeamController, SaveTeam, "/teams", "POST"_method)
-REGISTER_ROUTE(TeamController, UpdateTeam, "/teams/<string>", "PUT"_method)
-REGISTER_ROUTE(TeamController, DeleteTeam, "/teams/<string>", "DELETE"_method)
+REGISTER_ROUTE(TeamController, getTeam, "/teams/<string>", "GET"_method);
+REGISTER_ROUTE(TeamController, getAllTeams, "/teams", "GET"_method);
+REGISTER_ROUTE(TeamController, SaveTeam, "/teams", "POST"_method);
