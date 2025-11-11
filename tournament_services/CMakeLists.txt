@@ -52,6 +52,8 @@ target_link_libraries(tournament_services_lib
         libpqxx::pqxx
         tournament_common
         Threads::Threads
+        unofficial::activemq-cpp::activemq-cpp
+
 )
 
 # Link asio only if available as a target
@@ -85,6 +87,7 @@ target_include_directories(${PROJECT_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/tournament_common/include
         ${HYPODERMIC_INCLUDE_DIRS}
+
 )
 
 target_link_libraries(${PROJECT_NAME}
