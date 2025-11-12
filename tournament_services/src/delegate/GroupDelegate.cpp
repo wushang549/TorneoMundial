@@ -1,13 +1,20 @@
 //GroupDelegate.cpp
 #include "delegate/GroupDelegate.hpp"
+#include "../include/cms/QueueMessageProducer.hpp"
+#include <chrono>        // for timestamp
+#include <nlohmann/json.hpp>
 #include <algorithm>
 // ---------------- ctor ----------------
 GroupDelegate::GroupDelegate(const std::shared_ptr<TournamentRepository>& tournamentRepository,
                              const std::shared_ptr<IGroupRepository>& groupRepository,
-                             const std::shared_ptr<TeamRepository>& teamRepository)
+                             const std::shared_ptr<TeamRepository>& teamRepository,
+                             const std::shared_ptr<QueueMessageProducer>& messageProducer)
     : tournamentRepository(tournamentRepository),
       groupRepository(groupRepository),
-      teamRepository(teamRepository) {}
+      teamRepository(teamRepository),
+      messageProducer(messageProducer) {}
+
+
 
 // ---------------- CreateGroup ----------------
 std::expected<std::string, std::string>
@@ -193,6 +200,22 @@ GroupDelegate::AddTeamToGroup(std::string_view tournamentId,
     }
 
     groupRepository->UpdateGroupAddTeam(std::string(groupId), team);
+
+    // --- Publish domain event ---
+    if (messageProducer) {
+        nlohmann::json evt;
+        evt["type"]         = "tournament.team.added";
+        evt["tournamentId"] = std::string(tournamentId);
+        evt["groupId"]      = std::string(groupId);
+        evt["teamId"]       = std::string(teamId);
+        evt["occurredAt"]   = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                  std::chrono::system_clock::now().time_since_epoch()
+                              ).count();
+
+        // Queue name must match your consumer Start("tournament.team-add")
+        messageProducer->SendMessage(evt.dump(), "tournament.team-add");
+        std::cout << "[producer] published tournament.team-add: " << evt.dump() << std::endl;
+    }
 
     return {};
 }

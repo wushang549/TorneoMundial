@@ -1,3 +1,4 @@
+//GroupDelegate.hpp
 #pragma once
 #ifndef SERVICE_GROUP_DELEGATE_HPP
 #define SERVICE_GROUP_DELEGATE_HPP
@@ -11,20 +12,26 @@
 #include "delegate/IGroupDelegate.hpp"
 
 // OJO: usa el prefijo real de tus headers:
+
 #include "persistence/repository/TournamentRepository.hpp"
 #include "persistence/repository/IGroupRepository.hpp"
 #include "persistence/repository/GroupRepository.hpp"
 #include "persistence/repository/TeamRepository.hpp"
+#include "../cms/QueueMessageProducer.hpp"
 
 class GroupDelegate : public IGroupDelegate {
     std::shared_ptr<TournamentRepository> tournamentRepository;
     std::shared_ptr<IGroupRepository>     groupRepository;
     std::shared_ptr<TeamRepository>       teamRepository;
+    std::shared_ptr<QueueMessageProducer> messageProducer; // 🔹 falta este atributo
+
 
 public:
     GroupDelegate(const std::shared_ptr<TournamentRepository>& tournamentRepository,
-                  const std::shared_ptr<IGroupRepository>& groupRepository,
-                  const std::shared_ptr<TeamRepository>& teamRepository);
+               const std::shared_ptr<IGroupRepository>& groupRepository,
+               const std::shared_ptr<TeamRepository>& teamRepository,
+               const std::shared_ptr<QueueMessageProducer>& messageProducer);
+
 
     // IGroupDelegate
     std::expected<std::string, std::string>

@@ -16,15 +16,33 @@ class QueueMessageProducer: public IQueueMessageProducer {
 public:
     explicit QueueMessageProducer(const std::shared_ptr<ConnectionManager>& connectionManager) : connectionManager(connectionManager){}
 
+    // QueueMessageProducer.hpp  (solo método SendMessage)
     void SendMessage(const std::string_view& message, const std::string_view& queue) override {
-        auto session = connectionManager->CreateSession();
-        const auto destination = std::unique_ptr<cms::Destination>(session->createQueue(queue.data()));
-        auto producer = std::unique_ptr<cms::MessageProducer>(session->createProducer(destination.get()));
-        producer->setDeliveryMode( cms::DeliveryMode::NON_PERSISTENT );
+        try {
+            auto session = connectionManager->CreateSession(); // shared_ptr<cms::Session>
 
-        const auto brokerMessage = std::unique_ptr<cms::TextMessage>(session->createTextMessage(message.data()));
-        producer->send(brokerMessage.get());
+            std::unique_ptr<cms::Destination> dest(session->createQueue(queue.data()));
+            std::unique_ptr<cms::MessageProducer> prod(session->createProducer(dest.get()));
+
+            // Choose delivery mode (Persistent for durability; NonPersistent for speed)
+            prod->setDeliveryMode(cms::DeliveryMode::PERSISTENT);
+
+            std::unique_ptr<cms::TextMessage> msg(session->createTextMessage(std::string(message)));
+            prod->send(msg.get());
+
+            // Ensure clean shutdown order
+            prod->close();
+            session->close();
+        } catch (const cms::CMSException& e) {
+            // Minimal logging; adjust to your logger
+            std::cerr << "[QueueMessageProducer] CMSException: " << e.getMessage() << std::endl;
+            throw; // rethrow so caller can decide (optional)
+        } catch (const std::exception& e) {
+            std::cerr << "[QueueMessageProducer] Exception: " << e.what() << std::endl;
+            throw;
+        }
     }
+
 };
 
 #endif //SERVICE_MESSAGE_PRODUCER_HPP

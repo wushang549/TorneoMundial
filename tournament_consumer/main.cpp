@@ -1,27 +1,25 @@
-//
-// Created by tomas on 9/6/25.
-//ewfewf
 #include <activemq/library/ActiveMQCPP.h>
 #include <thread>
+#include <iostream>
 
 #include "configuration/ContainerSetup.hpp"
+#include "cms/GroupAddTeamListener.hpp"
 
 int main() {
     activemq::library::ActiveMQCPP::initializeLibrary();
     {
-        std::println("before container");
-        const auto container = config::containerSetup();
-        std::println("after container");
+        std::cout << "Starting tournament consumer...\n";
+        auto container = config::containerSetup();
+        std::cout << "Container initialized\n";
 
-        std::thread tournamentCreatedThread([&] {
-            auto listener = container->resolve<QueueMessageConsumer>();
-            listener->Start("tournament.created");
+        auto teamAddListener = container->resolve<GroupAddTeamListener>();
+
+        std::thread t1([listener = std::move(teamAddListener)]() {
+            listener->Start("tournament.team-add");
         });
 
-        tournamentCreatedThread.join();
-        // while (true) {
-        //     std::this_thread::sleep_for(std::chrono::seconds(5));
-        // }
+        std::cout << "Listener thread started\n";
+        t1.join();
     }
     activemq::library::ActiveMQCPP::shutdownLibrary();
     return 0;
