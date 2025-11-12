@@ -24,7 +24,7 @@
 // MQ
 #include "cms/ConnectionManager.hpp"
 #include "cms/GroupAddTeamListener.hpp"
-#include "cms/ScoreUpdateListener.hpp" // si lo usas
+#include "cms/ScoreUpdateListener.hpp"
 
 namespace config {
 
@@ -66,21 +66,21 @@ inline std::shared_ptr<Hypodermic::Container> containerSetup() {
 
     // Regístralo como INTERFAZ y también como CONCRETO (para ctors que piden concreto)
     builder.registerType<TournamentRepository>()
-        .as<IRepository<domain::Tournament, std::string>>()   // si tu base exige esta firma// para MatchDelegate(toma concreto)
+        .as<IRepository<domain::Tournament, std::string>>()
         .singleInstance();
 
     builder.registerType<TeamRepository>()
-        .as<IRepository<domain::Team, std::string_view>>()     // coincide con tu TeamRepository.hpp
+        .as<IRepository<domain::Team, std::string_view>>()
         .singleInstance();
 
     // Delegate y listeners (resolución por tipo concreto)
     builder.registerType<MatchDelegate>().singleInstance();
     builder.registerType<GroupAddTeamListener>().singleInstance();
-    builder.registerType<ScoreUpdateListener>().singleInstance(); // comenta si no lo usas
+    builder.registerType<ScoreUpdateListener>().singleInstance();
 
     return builder.build();
 }
 
-} // namespace config
+}
 
 #endif // TOURNAMENTS_CONSUMER_CONTAINER_SETUP_HPP
