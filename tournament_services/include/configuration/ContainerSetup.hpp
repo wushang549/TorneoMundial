@@ -1,4 +1,4 @@
-//
+//containersetup.hpp
 // Created by tomas on 8/22/25.
 //
 
@@ -73,13 +73,20 @@ namespace config {
         // Messaging (ActiveMQ)
         builder.registerType<ConnectionManager>()
             .onActivated([configuration](Hypodermic::ComponentContext&, const std::shared_ptr<ConnectionManager>& instance) {
-                instance->initialize(configuration["activemq"]["broker-url"].get<std::string>());
+                const auto broker = configuration["activemq"]["broker-url"].get<std::string>();
+                const auto user   = configuration["activemq"].value("username", std::string{});
+                const auto pass   = configuration["activemq"].value("password", std::string{});
+                const auto cid    = configuration["activemq"].value("clientId", std::string{"tournament-services"});
+                instance->initialize(broker, user, pass, cid); // overload with creds+clientId
             })
             .singleInstance();
 
-        // Producer “tournamentAddTeamQueue”
+
+        // Producer as interface
         builder.registerType<QueueMessageProducer>()
-               .named("tournamentAddTeamQueue");
+               .as<IQueueMessageProducer>()
+               .singleInstance();
+
 
         // Queue resolver
         builder.registerType<QueueResolver>()
@@ -159,6 +166,7 @@ namespace config {
     makeMatchController(const std::shared_ptr<Hypodermic::Container>& c) {
         return c->resolve<MatchController>();
     }
+
 
 } // namespace config
 
