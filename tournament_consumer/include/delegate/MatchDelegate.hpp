@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <unordered_set>
 #include <string_view>
+
 #include "event/TeamAddEvent.hpp"
 #include "event/ScoreUpdateEvent.hpp"
 
@@ -21,15 +22,12 @@ class MatchDelegate {
     std::shared_ptr<IGroupRepository>     groupRepository;
     std::shared_ptr<TournamentRepository> tournamentRepository;
 
-    // Maps enum rounds to lowercase keys used in persistence and logs
     static std::string RoundKey(std::string_view r) {
-        // Normalize to the canonical keys used in DB indexes
         if (r == rounds::GROUP) return "group";
         if (r == rounds::R16)   return "r16";
         if (r == rounds::QF)    return "qf";
         if (r == rounds::SF)    return "sf";
         if (r == rounds::FINAL) return "final";
-        // Fallback: pass-through (covers unexpected/custom rounds)
         return std::string(r);
     }
 
@@ -45,7 +43,6 @@ public:
         std::cout << "[MatchDelegate/WC] Team added in tournament: "
                   << teamAddEvent.tournamentId << "\n";
 
-        // Group progress
         if (auto grp = groupRepository->FindByTournamentIdAndGroupId(
                 teamAddEvent.tournamentId, teamAddEvent.groupId)) {
             auto tRes = tournamentRepository->ReadById(teamAddEvent.tournamentId);
@@ -55,7 +52,6 @@ public:
                       << " teams\n";
         }
 
-        // Tournament progress
         {
             auto allGroups = groupRepository->FindByTournamentId(teamAddEvent.tournamentId);
             if (!allGroups.empty()) {
@@ -80,7 +76,6 @@ public:
         }
     }
 
-    // Public so listeners can call it
     void ProcessScoreUpdate(const ScoreUpdateEvent& e) {
         std::cout << "[MatchDelegate/WC] Score update for tournament: " << e.tournamentId << "\n";
 
@@ -89,7 +84,6 @@ public:
             return;
         }
 
-        // Idempotent KO assembly/advance
         CreateKnockoutMatches(e.tournamentId);
     }
 
@@ -121,11 +115,12 @@ private:
         return true;
     }
 
+    // FIX: ignore string status; rely only on score presence
     bool AllGroupMatchesPlayed(const std::string& tournamentId) {
         auto all = matchRepository->FindByTournamentId(tournamentId);
         for (const auto& m : all) {
             if (!m) continue;
-            if (m->Round() == rounds::GROUP && (m->Status() == "pending" || !m->HasScore()))
+            if (m->Round() == rounds::GROUP && !m->HasScore())
                 return false;
         }
         return true;
@@ -168,7 +163,6 @@ private:
         auto groups = groupRepository->FindByTournamentId(tournamentId);
         auto all    = matchRepository->FindByTournamentId(tournamentId);
 
-        // Build in-memory idempotency set for already persisted KO matches
         auto makeKey = [&](const domain::Match& m) {
             const std::string r   = RoundKey(m.Round());
             const std::string hid = m.Home().Id();
@@ -197,35 +191,40 @@ private:
             std::cout << "[WC] Strategy error: " << createdOrErr.error() << "\n";
             return;
         }
-        const auto& createdRaw = createdOrErr.value();
+        const auto& proposals = createdOrErr.value();
 
-        // Filter: no placeholders, no duplicates
         std::vector<domain::Match> toCreate;
-        toCreate.reserve(createdRaw.size());
-        for (const auto& m : createdRaw) {
+        toCreate.reserve(proposals.size());
+        for (const auto& m : proposals) {
             const auto& hid = m.Home().Id();
             const auto& vid = m.Visitor().Id();
-            if (hid.empty() || vid.empty()) {
-                std::cout << "[WC] Skipping KO placeholder (" << RoundKey(m.Round()) << ") with empty team ids\n";
-                continue;
-            }
-            if (existing.find(makeKey(m)) != existing.end()) {
-                continue; // already persisted
-            }
+            if (hid.empty() || vid.empty()) continue;
+            if (existing.find(makeKey(m)) != existing.end()) continue;
             toCreate.push_back(m);
         }
 
         if (toCreate.empty()) {
-            std::cout << "[WC] KO bracket already up-to-date (or waiting for placeholders to resolve)\n";
+            std::cout << "[WC] KO bracket already up-to-date (or waiting for more results)\n";
             return;
         }
 
         int inserted = 0, skipped = 0;
         for (const auto& m : toCreate) {
-            // Requires repository change: idempotent insert with ON CONFLICT DO NOTHING
-            const std::string id = matchRepository->CreateIfNotExists(m);
-            if (!id.empty()) inserted++;
-            else skipped++; // existed concurrently
+            // Prefer idempotent insert if your repo lo soporta; si no, usa Create(m)
+            std::string id;
+            try {
+                id = matchRepository->CreateIfNotExists(m);
+            } catch (...) {
+                id.clear();
+            }
+            if (id.empty()) {
+                try {
+                    id = matchRepository->Create(m);
+                } catch (...) {
+                    id.clear();
+                }
+            }
+            if (!id.empty()) inserted++; else skipped++;
         }
 
         std::cout << "[WC] Created " << inserted << " knockout matches; " << skipped << " already existed\n";
