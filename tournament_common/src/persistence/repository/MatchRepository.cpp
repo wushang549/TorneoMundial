@@ -1,4 +1,3 @@
-//MatchRepository.cpp
 #include <pqxx/pqxx>
 #include <nlohmann/json.hpp>
 #include "persistence/repository/MatchRepository.hpp"
@@ -6,7 +5,6 @@
 
 using nlohmann::json;
 
-// Escape helper for JSON string building (keeps it consistent with other repos).
 static std::string esc(const std::string& s) {
     std::string out; out.reserve(s.size() + 8);
     for (char c : s) {
@@ -16,11 +14,7 @@ static std::string esc(const std::string& s) {
     return out;
 }
 
-// Serialize full match "document" as a compact JSON string for the jsonb column.
-// Only includes "score" if present, mirroring the API.
 std::string MatchRepository::to_doc_string(const domain::Match& m) {
-    // Build nested JSON manually to avoid incidental formatting differences
-    // (same approach used in TournamentRepository).
     std::string doc = "{";
 
     doc += "\"tournamentId\":\""; doc += esc(m.TournamentId()); doc += "\",";
@@ -59,7 +53,6 @@ std::string MatchRepository::to_doc_string(const domain::Match& m) {
     return doc;
 }
 
-// Map row (id, document) -> domain::Match
 std::shared_ptr<domain::Match> MatchRepository::row_to_domain(const pqxx::row& row) {
     const std::string id  = row["id"].c_str();
     json j = json::parse(row["document"].c_str());
@@ -132,6 +125,7 @@ std::string MatchRepository::Update(const domain::Match& entity) {
     tx.commit();
     return entity.Id();
 }
+
 std::string MatchRepository::Create(const domain::Match& entity) {
     if (entity.TournamentId().empty()) {
         throw std::invalid_argument("match.TournamentId is required");
@@ -156,4 +150,51 @@ std::string MatchRepository::Create(const domain::Match& entity) {
     const std::string id = r[0]["id"].c_str();
     tx.commit();
     return id;
+}
+
+// Idempotent insert using generated columns + unique constraint
+std::string MatchRepository::CreateIfNotExists(const domain::Match& entity) {
+    if (entity.TournamentId().empty()) {
+        throw std::invalid_argument("match.TournamentId is required");
+    }
+
+    auto pooled = connectionProvider->Connection();
+    auto* conn  = dynamic_cast<PostgresConnection*>(&*pooled);
+
+    const std::string doc = to_doc_string(entity);
+
+    pqxx::work tx(*(conn->connection));
+    // ON CONFLICT over (tournament_id, round_key, home_id_key, visitor_id_key)
+    pqxx::result r = tx.exec_params(
+        "INSERT INTO matches (tournament_id, document) "
+        "VALUES ($1::uuid, $2::jsonb) "
+        "ON CONFLICT (tournament_id, round_key, home_id_key, visitor_id_key) "
+        "DO NOTHING "
+        "RETURNING id",
+        entity.TournamentId(), doc
+    );
+
+    if (!r.empty()) {
+        const std::string id = r[0]["id"].c_str();
+        tx.commit();
+        return id;
+    }
+
+    // Conflict: fetch the existing id to return it
+    pqxx::result r2 = tx.exec_params(
+        "SELECT id FROM matches "
+        "WHERE tournament_id = $1::uuid "
+        "AND round_key   = ($2::jsonb->>'round') "
+        "AND home_id_key = (($2::jsonb->'home'->>'id')::uuid) "
+        "AND visitor_id_key = (($2::jsonb->'visitor'->>'id')::uuid) "
+        "LIMIT 1",
+        entity.TournamentId(), doc
+    );
+    if (r2.empty()) {
+        tx.abort();
+        throw std::runtime_error("conflict occurred but existing row not found");
+    }
+    const std::string existingId = r2[0]["id"].c_str();
+    tx.commit();
+    return existingId;
 }

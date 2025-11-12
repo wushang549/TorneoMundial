@@ -1,54 +1,108 @@
-//MatchController.cpp
+// MatchController.cpp
 #include "controller/MatchController.hpp"
-#include "configuration/RouteDefinition.hpp"  // required by REGISTER_ROUTE(...)
-#include "delegate/MatchDelegate.hpp"         // brings IMatchDelegate interface
+#include "configuration/RouteDefinition.hpp"
+#include "delegate/MatchDelegate.hpp"
+
 #include <nlohmann/json.hpp>
 #include <regex>
 #include <optional>
 #include <string_view>
+#include <cstdlib>   // std::getenv
+#include <memory>
+#include <iostream>
 
-#define JSON_CONTENT_TYPE "application/json"
+// ActiveMQ-CPP / CMS
+#include <cms/CMSException.h>
+#include <cms/Connection.h>
+#include <cms/ConnectionFactory.h>
+#include <cms/MessageProducer.h>
+#include <cms/Session.h>
+#include <cms/TextMessage.h>
+
+#define JSON_CONTENT_TYPE   "application/json"
 #define CONTENT_TYPE_HEADER "content-type"
 
-// If your project constant ID_VALUE is not resolving, use a local UUID pattern.
-// This keeps the file standalone and avoids dependency issues.
+// Local UUID regex (keep file standalone)
 static const std::regex UUID_RE("^[0-9a-fA-F]{8}-"
                                 "[0-9a-fA-F]{4}-"
                                 "[0-9a-fA-F]{4}-"
                                 "[0-9a-fA-F]{4}-"
                                 "[0-9a-fA-F]{12}$");
 
+// ----------- Simple one-shot publisher (safe and minimal) -----------
+static std::string brokerUrl() {
+    if (const char* env = std::getenv("BROKER_URL")) {
+        return std::string(env);
+    }
+    return std::string("failover://(tcp://artemis:61616)");
+}
+
+static void publish_score_recorded(const std::string& tournamentId,
+                                   const std::string& matchId) {
+    try {
+        std::unique_ptr<cms::ConnectionFactory> factory(
+            cms::ConnectionFactory::createCMSConnectionFactory(brokerUrl()));
+        std::unique_ptr<cms::Connection> connection(factory->createConnection());
+        connection->start();
+
+        std::unique_ptr<cms::Session> session(
+            connection->createSession(cms::Session::AUTO_ACKNOWLEDGE));
+
+        std::unique_ptr<cms::Destination> dest(
+            session->createQueue("match.score-recorded"));
+
+        std::unique_ptr<cms::MessageProducer> producer(
+            session->createProducer(dest.get()));
+        producer->setDeliveryMode(cms::DeliveryMode::NON_PERSISTENT);
+
+        nlohmann::json j = {
+            {"type", "match.score-recorded"},
+            {"tournamentId", tournamentId},
+            {"matchId", matchId}
+        };
+
+        std::unique_ptr<cms::TextMessage> msg(
+            session->createTextMessage(j.dump()));
+        producer->send(msg.get());
+
+        std::cerr << "[MatchController] published match.score-recorded "
+                  << matchId << " in " << tournamentId << std::endl;
+    } catch (const cms::CMSException& e) {
+        std::cerr << "[MatchController] ERROR publishing (CMS): "
+                  << e.getMessage() << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "[MatchController] ERROR publishing: "
+                  << e.what() << std::endl;
+    }
+}
+
+// ------------------- Endpoints -------------------
+
 // GET /tournaments/{tId}/matches?showMatches=played|pending
 crow::response MatchController::ReadAll(const crow::request& request,
                                         const std::string& tournamentId) const {
-    // Path param validation (UUID expected)
     if (!std::regex_match(tournamentId, UUID_RE)) {
         return crow::response{crow::BAD_REQUEST, "Invalid tournament ID format"};
     }
 
     try {
-        // Optional filter: "played" or "pending"
         std::optional<std::string_view> filter;
         if (const char* p = request.url_params.get("showMatches")) {
             filter = std::string_view{p};
         }
 
-        // Delegate fetch
         auto matches = matchDelegate->ReadAll(tournamentId, filter);
 
-        // Convert vector<shared_ptr<Match>> to JSON array (uses to_json(Match))
         nlohmann::json body = nlohmann::json::array();
         for (const auto& m : matches) {
             if (m) body.push_back(*m);
         }
 
-        // Build HTTP response explicitly (avoid copy-ctor warnings)
         crow::response res(body.dump());
         res.code = crow::OK;
         res.add_header(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE);
         return res;
     } catch (const std::runtime_error& e) {
-        // Delegate throws "not_found" when tournament does not exist
         if (std::string_view{e.what()} == "not_found") {
             return crow::response{crow::NOT_FOUND, "tournament not found"};
         }
@@ -84,6 +138,7 @@ crow::response MatchController::ReadById(const std::string& tournamentId,
 }
 
 // PATCH /tournaments/{tId}/matches/{mId}
+// Body: { "score": { "home": <int>, "visitor": <int> } }
 crow::response MatchController::PatchScore(const crow::request& request,
                                            const std::string& tournamentId,
                                            const std::string& matchId) const {
@@ -95,7 +150,6 @@ crow::response MatchController::PatchScore(const crow::request& request,
         return crow::response{crow::BAD_REQUEST, "Invalid JSON body"};
     }
 
-    // Minimal payload validation
     auto body = nlohmann::json::parse(request.body);
     if (!body.contains("score") || !body["score"].is_object()) {
         return crow::response{crow::BAD_REQUEST, "Missing 'score' object"};
@@ -108,7 +162,6 @@ crow::response MatchController::PatchScore(const crow::request& request,
     const int home    = js["home"].get<int>();
     const int visitor = js["visitor"].get<int>();
 
-    // Delegate applies rules: bounds check and no-draws with deterministic tiebreak
     auto r = matchDelegate->UpdateScore(tournamentId, matchId, home, visitor);
     if (!r) {
         const std::string err = r.error();
@@ -121,15 +174,19 @@ crow::response MatchController::PatchScore(const crow::request& request,
         return crow::response{crow::INTERNAL_SERVER_ERROR, "update score failed"};
     }
 
+    // Publish event so the consumer can advance the tournament
+    publish_score_recorded(tournamentId, matchId);
+
     return crow::response{crow::NO_CONTENT};
 }
+
+// POST /tournaments/{tId}/matches
+// Body: { "round": "...", "home":{id,name}, "visitor":{id,name} }
 crow::response MatchController::Create(const crow::request& request,
                                        const std::string& tournamentId) const {
-    // Validate path param
     if (!std::regex_match(tournamentId, UUID_RE)) {
         return crow::response{crow::BAD_REQUEST, "Invalid tournament ID format"};
     }
-    // Validate JSON
     if (!nlohmann::json::accept(request.body)) {
         return crow::response{crow::BAD_REQUEST, "Invalid JSON body"};
     }
@@ -148,7 +205,6 @@ crow::response MatchController::Create(const crow::request& request,
             return crow::response{crow::INTERNAL_SERVER_ERROR, "create match failed"};
         }
 
-        // Success -> 201 Created, return the new id
         nlohmann::json resp = { {"id", result.value()} };
         crow::response res(resp.dump());
         res.code = crow::CREATED;
@@ -160,8 +216,9 @@ crow::response MatchController::Create(const crow::request& request,
         return crow::response{crow::INTERNAL_SERVER_ERROR, "create match failed"};
     }
 }
-// Route bindings (keep them at global scope, after method definitions)
-REGISTER_ROUTE(MatchController, ReadAll,    "/tournaments/<string>/matches",           "GET"_method)
-REGISTER_ROUTE(MatchController, ReadById,   "/tournaments/<string>/matches/<string>", "GET"_method)
-REGISTER_ROUTE(MatchController, PatchScore, "/tournaments/<string>/matches/<string>", "PATCH"_method)
-REGISTER_ROUTE(MatchController, Create,     "/tournaments/<string>/matches",           "POST"_method)
+
+// Route bindings
+REGISTER_ROUTE(MatchController, ReadAll,    "/tournaments/<string>/matches",            "GET"_method)
+REGISTER_ROUTE(MatchController, ReadById,   "/tournaments/<string>/matches/<string>",  "GET"_method)
+REGISTER_ROUTE(MatchController, PatchScore, "/tournaments/<string>/matches/<string>",  "PATCH"_method)
+REGISTER_ROUTE(MatchController, Create,     "/tournaments/<string>/matches",            "POST"_method)

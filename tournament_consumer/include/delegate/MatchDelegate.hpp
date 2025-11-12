@@ -4,7 +4,8 @@
 #include <string>
 #include <iostream>
 #include <algorithm>
-
+#include <unordered_set>
+#include <string_view>
 #include "event/TeamAddEvent.hpp"
 #include "event/ScoreUpdateEvent.hpp"
 
@@ -20,6 +21,18 @@ class MatchDelegate {
     std::shared_ptr<IGroupRepository>     groupRepository;
     std::shared_ptr<TournamentRepository> tournamentRepository;
 
+    // Maps enum rounds to lowercase keys used in persistence and logs
+    static std::string RoundKey(std::string_view r) {
+        // Normalize to the canonical keys used in DB indexes
+        if (r == rounds::GROUP) return "group";
+        if (r == rounds::R16)   return "r16";
+        if (r == rounds::QF)    return "qf";
+        if (r == rounds::SF)    return "sf";
+        if (r == rounds::FINAL) return "final";
+        // Fallback: pass-through (covers unexpected/custom rounds)
+        return std::string(r);
+    }
+
 public:
     MatchDelegate(const std::shared_ptr<IMatchRepository>& matchRepository,
                   const std::shared_ptr<IGroupRepository>& groupRepository,
@@ -32,7 +45,7 @@ public:
         std::cout << "[MatchDelegate/WC] Team added in tournament: "
                   << teamAddEvent.tournamentId << "\n";
 
-        // Group-level progress (affected group)
+        // Group progress
         if (auto grp = groupRepository->FindByTournamentIdAndGroupId(
                 teamAddEvent.tournamentId, teamAddEvent.groupId)) {
             auto tRes = tournamentRepository->ReadById(teamAddEvent.tournamentId);
@@ -42,7 +55,7 @@ public:
                       << " teams\n";
         }
 
-        // Global tournament progress
+        // Tournament progress
         {
             auto allGroups = groupRepository->FindByTournamentId(teamAddEvent.tournamentId);
             if (!allGroups.empty()) {
@@ -52,7 +65,7 @@ public:
 
                 int complete = 0;
                 for (const auto& g : allGroups) {
-                    if ((int)g->Teams().size() == expectedPerGroup) complete++;
+                    if (static_cast<int>(g->Teams().size()) == expectedPerGroup) complete++;
                 }
                 std::cout << "[WC] Progress: " << complete << "/" << expectedGroups
                           << " groups complete\n";
@@ -67,20 +80,17 @@ public:
         }
     }
 
-    void ProcessScoreUpdate(const ScoreUpdateEvent& scoreUpdateEvent) {
-        std::cout << "[MatchDelegate/WC] Score update for tournament: "
-                  << scoreUpdateEvent.tournamentId << "\n";
+    // Public so listeners can call it
+    void ProcessScoreUpdate(const ScoreUpdateEvent& e) {
+        std::cout << "[MatchDelegate/WC] Score update for tournament: " << e.tournamentId << "\n";
 
-        if (AllGroupMatchesPlayed(scoreUpdateEvent.tournamentId)) {
-            if (!IsInKnockouts(scoreUpdateEvent.tournamentId)) {
-                std::cout << "[MatchDelegate/WC] Group stage complete -> creating knockouts...\n";
-                CreateKnockoutMatches(scoreUpdateEvent.tournamentId);
-            } else {
-                std::cout << "[MatchDelegate/WC] Already in knockouts (advance wiring optional).\n";
-            }
-        } else {
+        if (!AllGroupMatchesPlayed(e.tournamentId)) {
             std::cout << "[MatchDelegate/WC] Still pending group matches...\n";
+            return;
         }
+
+        // Idempotent KO assembly/advance
+        CreateKnockoutMatches(e.tournamentId);
     }
 
 private:
@@ -121,14 +131,6 @@ private:
         return true;
     }
 
-    bool IsInKnockouts(const std::string& tournamentId) {
-        auto all = matchRepository->FindByTournamentId(tournamentId);
-        return std::any_of(all.begin(), all.end(),
-                           [](const std::shared_ptr<domain::Match>& m) {
-                               return m && m->Round() == rounds::R16;
-                           });
-    }
-
     void CreateGroupStageMatches(const std::string& tournamentId) {
         auto t = tournamentRepository->ReadById(tournamentId);
         if (!t) {
@@ -166,34 +168,66 @@ private:
         auto groups = groupRepository->FindByTournamentId(tournamentId);
         auto all    = matchRepository->FindByTournamentId(tournamentId);
 
+        // Build in-memory idempotency set for already persisted KO matches
+        auto makeKey = [&](const domain::Match& m) {
+            const std::string r   = RoundKey(m.Round());
+            const std::string hid = m.Home().Id();
+            const std::string vid = m.Visitor().Id();
+            return r + "|" + hid + "|" + vid;
+        };
+
+        std::unordered_set<std::string> existing;
+        existing.reserve(all.size());
+        for (const auto& sp : all) {
+            if (!sp) continue;
+            const auto& m = *sp;
+            if (m.Round() == rounds::R16 || m.Round() == rounds::QF ||
+                m.Round() == rounds::SF  || m.Round() == rounds::FINAL) {
+                const auto& hid = m.Home().Id();
+                const auto& vid = m.Visitor().Id();
+                if (!hid.empty() && !vid.empty()) {
+                    existing.insert(makeKey(m));
+                }
+            }
+        }
+
         WorldCupStrategy s;
         auto createdOrErr = s.CreatePlayoffMatches(*t, all, groups);
         if (!createdOrErr) {
             std::cout << "[WC] Strategy error: " << createdOrErr.error() << "\n";
             return;
         }
-        const auto& created = createdOrErr.value();
+        const auto& createdRaw = createdOrErr.value();
 
-        int ok = 0;
-        std::vector<std::string> ids;
-        std::vector<std::shared_ptr<domain::Match>> saved;
-
-        for (const auto& m : created) {
-            const std::string id = matchRepository->Create(m);
-            if (!id.empty()) {
-                ok++;
-                ids.push_back(id);
-                saved.push_back(
-                    matchRepository->FindByTournamentIdAndMatchId(tournamentId, id)
-                );
-            } else {
-                std::cout << "[WC] ERROR creating KO match\n";
+        // Filter: no placeholders, no duplicates
+        std::vector<domain::Match> toCreate;
+        toCreate.reserve(createdRaw.size());
+        for (const auto& m : createdRaw) {
+            const auto& hid = m.Home().Id();
+            const auto& vid = m.Visitor().Id();
+            if (hid.empty() || vid.empty()) {
+                std::cout << "[WC] Skipping KO placeholder (" << RoundKey(m.Round()) << ") with empty team ids\n";
+                continue;
             }
+            if (existing.find(makeKey(m)) != existing.end()) {
+                continue; // already persisted
+            }
+            toCreate.push_back(m);
         }
 
-        // Optional: wire bracket links here if you decide to keep explicit next-match pointers.
+        if (toCreate.empty()) {
+            std::cout << "[WC] KO bracket already up-to-date (or waiting for placeholders to resolve)\n";
+            return;
+        }
 
-        std::cout << "[WC] Created " << ok << "/" << created.size()
-                  << " knockout matches\n";
+        int inserted = 0, skipped = 0;
+        for (const auto& m : toCreate) {
+            // Requires repository change: idempotent insert with ON CONFLICT DO NOTHING
+            const std::string id = matchRepository->CreateIfNotExists(m);
+            if (!id.empty()) inserted++;
+            else skipped++; // existed concurrently
+        }
+
+        std::cout << "[WC] Created " << inserted << " knockout matches; " << skipped << " already existed\n";
     }
 };
