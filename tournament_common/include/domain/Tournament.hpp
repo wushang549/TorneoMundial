@@ -8,47 +8,37 @@
 #include "domain/Match.hpp"
 
 namespace domain {
+
     enum class TournamentType {
-        ROUND_ROBIN, NFL
+        ROUND_ROBIN,
+        NFL
     };
 
     class TournamentFormat {
         int numberOfGroups;
         int maxTeamsPerGroup;
         TournamentType type;
+
     public:
-        TournamentFormat(int numberOfGroups = 1, int maxTeamsPerGroup = 16, TournamentType tournamentType = TournamentType::ROUND_ROBIN) {
-            this->numberOfGroups = numberOfGroups;
-            this->maxTeamsPerGroup = maxTeamsPerGroup;
-            this->type = tournamentType;
-        }
+        // World Cup defaults: 8 groups, 4 teams per group
+        TournamentFormat(int numberOfGroups = 8,
+                         int maxTeamsPerGroup = 4,
+                         TournamentType tournamentType = TournamentType::ROUND_ROBIN)
+            : numberOfGroups(numberOfGroups),
+              maxTeamsPerGroup(maxTeamsPerGroup),
+              type(tournamentType) {}
 
-        int NumberOfGroups() const {
-            return this->numberOfGroups;
-        }
-        int & NumberOfGroups() {
-            return this->numberOfGroups;
-        }
+        int NumberOfGroups() const { return numberOfGroups; }
+        int& NumberOfGroups() { return numberOfGroups; }
 
-        int MaxTeamsPerGroup() const {
-            return this->maxTeamsPerGroup;
-        }
+        int MaxTeamsPerGroup() const { return maxTeamsPerGroup; }
+        int& MaxTeamsPerGroup() { return maxTeamsPerGroup; }
 
-        int & MaxTeamsPerGroup() {
-            return this->maxTeamsPerGroup;
-        }
-
-        TournamentType Type() const {
-            return this->type;
-        }
-
-        TournamentType & Type() {
-            return this->type;
-        }
+        TournamentType Type() const { return type; }
+        TournamentType& Type() { return type; }
     };
 
-    class Tournament
-    {
+    class Tournament {
         std::string id;
         std::string name;
         TournamentFormat format;
@@ -56,42 +46,23 @@ namespace domain {
         std::vector<Match> matches;
 
     public:
-        explicit Tournament(const std::string &name = "", const TournamentFormat& format = TournamentFormat()) {
-            this->name = name;
-            this->format = format;
-        }
+        explicit Tournament(const std::string& name = "",
+                            const TournamentFormat& format = TournamentFormat())
+            : id(), name(name), format(format), groups(), matches() {}
 
-        [[nodiscard]] std::string Id() const {
-            return this->id;
-        }
+        std::string Id() const { return id; }
+        std::string& Id() { return id; }
 
-        std::string& Id() {
-            return this->id;
-        }
+        std::string Name() const { return name; }
+        std::string& Name() { return name; }
 
-        [[nodiscard]] std::string Name() const {
-            return this->name;
-        }
+        const TournamentFormat& Format() const { return format; }
+        TournamentFormat& Format() { return format; }
 
-        std::string& Name() {
-            return this->name;
-        }
-
-        [[nodiscard]] TournamentFormat Format() const {
-            return this->format;
-        }
-
-        TournamentFormat & Format () {
-            return this->format;
-        }
-
-        [[nodiscard]] std::vector<Group> & Groups() {
-            return this->groups;
-        }
-
-        [[nodiscard]] std::vector<Match> Matches() const {
-            return this->matches;
-        }
+        std::vector<Group>& Groups() { return groups; }
+        std::vector<Match> Matches() const { return matches; }
     };
-}
-#endif
+
+} // namespace domain
+
+#endif // DOMAIN_TOURNAMENT_HPP

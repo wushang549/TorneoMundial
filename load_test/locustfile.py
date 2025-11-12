@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 import requests
+from typing import Optional, Dict, List, Tuple
 
 BASE_URL = "http://host.containers.internal:8081"
-
 TOURNAMENTS_ENDPOINT = "/tournaments"
+GROUPS_ENDPOINT_FMT = "/tournaments/{tid}/groups"
+ADD_TEAM_TO_GROUP_FMT = "/tournaments/{tid}/groups/{gid}/teams/{teamId}"
 TEAMS_ENDPOINT = "/teams"
 
 TOURNAMENT_NAME = "World Cup 2025"
-TOURNAMENT_TYPE = "WORLD_CUP"
+TOURNAMENT_TYPE = "WORLD_CUP"  # matches your backend format.type
 
-TEAMS = [
+TEAMS: List[Dict] = [
     {"name": "Brazil",         "country": "Brazil",        "shortName": "BRA", "foundedYear": 1914, "coach": "Coach Brazil"},
     {"name": "Argentina",      "country": "Argentina",     "shortName": "ARG", "foundedYear": 1893, "coach": "Coach Argentina"},
     {"name": "France",         "country": "France",        "shortName": "FRA", "foundedYear": 1919, "coach": "Coach France"},
@@ -44,9 +46,19 @@ TEAMS = [
     {"name": "Canada",         "country": "Canada",        "shortName": "CAN", "foundedYear": 1912, "coach": "Coach Canada"},
 ]
 
+def http_post(path: str, json_body: dict | None = None) -> Tuple[int, dict | str]:
+    url = f"{BASE_URL}{path}"
+    try:
+        resp = requests.post(url, json=json_body)
+    except requests.RequestException as exc:
+        return 0, f"Request error: {exc}"
+    try:
+        data = resp.json()
+    except ValueError:
+        data = resp.text
+    return resp.status_code, data
 
-def create_world_cup() -> str | None:
-    url = f"{BASE_URL}{TOURNAMENTS_ENDPOINT}"
+def create_world_cup() -> Optional[str]:
     payload = {
         "name": TOURNAMENT_NAME,
         "format": {
@@ -55,43 +67,33 @@ def create_world_cup() -> str | None:
             "type": TOURNAMENT_TYPE,
         },
     }
-
-    try:
-        response = requests.post(url, json=payload)
-    except requests.RequestException as exc:
-        print(f"[ERROR] Request failed when creating tournament: {exc}")
+    status, data = http_post(TOURNAMENTS_ENDPOINT, payload)
+    if status == 201 and isinstance(data, dict):
+        tid = data.get("id")
+        print(f"[OK] Tournament created: {TOURNAMENT_NAME} id={tid}")
+        return tid
+    if status == 409:
+        print(f"[WARN] Tournament already exists. Body={data}")
         return None
-
-    if response.status_code == 201:
-        try:
-            data = response.json()
-        except ValueError:
-            data = {}
-
-        tournament_id = data.get("id")
-        print(f"[OK] Created tournament '{TOURNAMENT_NAME}' with id={tournament_id}")
-
-        if tournament_id:
-            with open("world_cup_tournament_id.txt", "w", encoding="utf-8") as f:
-                f.write(tournament_id)
-            print("[INFO] Saved tournament id to world_cup_tournament_id.txt")
-
-        return tournament_id
-
-    if response.status_code == 409:
-        print(f"[WARN] Tournament '{TOURNAMENT_NAME}' already exists (409 Conflict)")
-        print(f"Body: {response.text}")
-        return None
-
-    print(
-        f"[FAIL] Could not create tournament. "
-        f"Status={response.status_code}, Body={response.text}"
-    )
+    print(f"[FAIL] Tournament create failed. Status={status} Body={data}")
     return None
 
+def create_groups(tid: str) -> List[dict]:
+    group_ids: List[dict] = []
+    for i in range(1, 9):
+        name = f"grupo{i}"
+        status, data = http_post(GROUPS_ENDPOINT_FMT.format(tid=tid), {"name": name})
+        if status == 201 and isinstance(data, dict):
+            gid = data.get("id")
+            print(f"[OK] Group created: {name} id={gid}")
+            group_ids.append({"name": name, "id": gid})
+        elif status == 409:
+            print(f"[WARN] Group {name} already exists. Body={data}")
+        else:
+            print(f"[FAIL] Group {name} create failed. Status={status} Body={data}")
+    return group_ids
 
-def create_team(team: dict) -> None:
-    url = f"{BASE_URL}{TEAMS_ENDPOINT}"
+def create_team(team: dict) -> Optional[str]:
     payload = {
         "name": team["name"],
         "country": team["country"],
@@ -99,39 +101,65 @@ def create_team(team: dict) -> None:
         "foundedYear": team["foundedYear"],
         "coach": team["coach"],
     }
+    status, data = http_post(TEAMS_ENDPOINT, payload)
+    if status == 201 and isinstance(data, dict):
+        tid = data.get("id")
+        print(f"[OK] Team created: {team['name']} id={tid}")
+        return tid
+    if status == 409:
+        print(f"[WARN] Team exists: {team['name']}. Body={data}")
+        return None
+    print(f"[FAIL] Team create failed: {team['name']}. Status={status} Body={data}")
+    return None
 
-    try:
-        response = requests.post(url, json=payload)
-    except requests.RequestException as exc:
-        print(f"[ERROR] Request failed for team '{team['name']}': {exc}")
-        return
+def add_team_to_group(tournament_id: str, group_id: str, team_id: str) -> bool:
+    path = ADD_TEAM_TO_GROUP_FMT.format(tid=tournament_id, gid=group_id, teamId=team_id)
+    status, data = http_post(path, None)
+    if status in (200, 204):
+        print(f"[OK] Added team {team_id} to group {group_id}")
+        return True
+    print(f"[FAIL] Add team to group failed. Status={status} Body={data}")
+    return False
 
-    if response.status_code == 201:
-        try:
-            data = response.json()
-        except ValueError:
-            data = {}
-        team_id = data.get("id", "<no-id-returned>")
-        print(f"[OK] Created team '{team['name']}' with id={team_id}")
-    elif response.status_code == 409:
-        print(f"[WARN] Team '{team['name']}' already exists (409 Conflict)")
-    else:
-        print(
-            f"[FAIL] Could not create team '{team['name']}'. "
-            f"Status={response.status_code}, Body={response.text}"
-        )
-
+def chunk(lst: List[str], size: int) -> List[List[str]]:
+    return [lst[i:i+size] for i in range(0, len(lst), size)]
 
 def main() -> None:
+    # 1) Create tournament
     tournament_id = create_world_cup()
     if not tournament_id:
-        print("[INFO] Skipping team creation because tournament was not created.")
-    else:
-        print(f"[INFO] Using tournament id: {tournament_id} (for next steps later)")
-    print("[INFO] Creating 32 teams...")
-    for team in TEAMS:
-        create_team(team)
+        print("[STOP] No tournament id. Exiting.")
+        return
 
+    # 2) Create 8 groups
+    groups = create_groups(tournament_id)
+    # Keep only groups that returned an id
+    groups = [g for g in groups if g.get("id")]
+    if len(groups) < 8:
+        print(f"[WARN] Only {len(groups)} groups created. Proceeding with those.")
+
+    # 3) Create 32 teams
+    team_ids: List[str] = []
+    for t in TEAMS:
+        tid = create_team(t)
+        if tid:
+            team_ids.append(tid)
+
+    if len(team_ids) < 32:
+        print(f"[WARN] Only {len(team_ids)} teams created. Proceeding with those.")
+
+    # 4) Assign teams to groups in chunks of 4
+    team_chunks = chunk(team_ids, 4)
+    for idx, teams_chunk in enumerate(team_chunks):
+        if idx >= len(groups):
+            print("[INFO] No more groups available for remaining teams.")
+            break
+        group = groups[idx]
+        gid = group["id"]
+        for team_id in teams_chunk:
+            add_team_to_group(tournament_id, gid, team_id)
+
+    print("[DONE] Seeding complete.")
 
 if __name__ == "__main__":
     main()

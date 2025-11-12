@@ -5,14 +5,15 @@
 #include <nlohmann/json.hpp>
 #include <algorithm>
 // ---------------- ctor ----------------
-GroupDelegate::GroupDelegate(const std::shared_ptr<TournamentRepository>& tournamentRepository,
-                             const std::shared_ptr<IGroupRepository>& groupRepository,
-                             const std::shared_ptr<TeamRepository>& teamRepository,
-                             const std::shared_ptr<QueueMessageProducer>& messageProducer)
-    : tournamentRepository(tournamentRepository),
-      groupRepository(groupRepository),
-      teamRepository(teamRepository),
-      messageProducer(messageProducer) {}
+GroupDelegate::GroupDelegate(
+    const std::shared_ptr<TournamentRepository>& tRepo,
+    const std::shared_ptr<IGroupRepository>& gRepo,
+    const std::shared_ptr<TeamRepository>& teamRepo,
+    const std::shared_ptr<IQueueMessageProducer>& producer)
+    : tournamentRepository(tRepo),
+      groupRepository(gRepo),
+      teamRepository(teamRepo),
+      messageProducer(producer) {}
 
 
 
