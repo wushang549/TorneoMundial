@@ -7,9 +7,10 @@
 #include <algorithm>
 #include <map>
 #include <string>
+#include <optional>
 #include <iostream>
 
-// String constants for rounds (your Match uses round as string)
+// Round keys
 namespace rounds {
 inline const std::string GROUP = "group";
 inline const std::string R16   = "r16";
@@ -20,7 +21,7 @@ inline const std::string FINAL = "final";
 
 namespace wc {
 
-// Simple standings table (no draws allowed)
+// Basic standings table
 struct TableRow {
     std::string teamId;
     std::string teamName;
@@ -40,7 +41,6 @@ struct Table {
         if (!rows.count(id)) rows[id] = TableRow{ id, name };
     }
 
-    // No ties anywhere; winner gets 3 points
     void addMatch(const domain::Match& m) {
         if (!m.HasScore()) return;
         const auto& h  = m.Home();
@@ -61,8 +61,7 @@ struct Table {
         if (sh > sv) { Rh.won++; Rv.lost++; Rh.points += 3; }
         else if (sh < sv) { Rv.won++; Rh.lost++; Rv.points += 3; }
         else {
-            // If your backend never stores ties, this path will never hit.
-            std::cout << "[WorldCupStrategy] WARNING: tie detected but ties are disallowed\n";
+            // No ties expected in your flow
         }
     }
 
@@ -85,8 +84,40 @@ struct Table {
 } // namespace wc
 
 class WorldCupStrategy : public IMatchStrategy {
+    struct TeamRef {
+        std::string id;
+        std::string name;
+    };
+    struct Pair { TeamRef home; TeamRef visitor; };
+
+    static std::optional<const domain::Match*> findMatch(
+        const std::vector<std::shared_ptr<domain::Match>>& all,
+        const std::string& roundKey,
+        const std::string& homeId,
+        const std::string& visId)
+    {
+        for (const auto& sp : all) {
+            if (!sp) continue;
+            const auto& m = *sp;
+            if (m.Round() != roundKey) continue;
+            if (m.Home().Id() == homeId && m.Visitor().Id() == visId) {
+                return std::optional<const domain::Match*>{ &m };
+            }
+        }
+        return std::nullopt;
+    }
+
+    static std::optional<TeamRef> winnerOf(const domain::Match& m) {
+        if (!m.HasScore()) return std::nullopt;
+        const int sh = *m.ScoreHome();
+        const int sv = *m.ScoreVisitor();
+        if (sh == sv) return std::nullopt; // no draws expected
+        if (sh > sv)  return TeamRef{ m.Home().Id(), m.Home().Name() };
+        return TeamRef{ m.Visitor().Id(), m.Visitor().Name() };
+    }
+
 public:
-    // Round-robin (single) within each group: i<j
+    // Group round-robin (unchanged)
     std::expected<std::vector<domain::Match>, std::string>
     CreateRegularPhaseMatches(const domain::Tournament& tournament,
                               const std::vector<std::shared_ptr<domain::Group>>& groups) override
@@ -118,59 +149,75 @@ public:
         return matches;
     }
 
-    // R16 from top-2 of paired groups: (A,B), (C,D), ... → A1 vs B2, B1 vs A2
-    // Also appends placeholders for QF (4), SF (2), FINAL (1).
+    // NEW: Progressive KO generation (R16 -> QF -> SF -> FINAL) without placeholders
     std::expected<std::vector<domain::Match>, std::string>
     CreatePlayoffMatches(const domain::Tournament& tournament,
-                         const std::vector<std::shared_ptr<domain::Match>>& regularMatches,
+                         const std::vector<std::shared_ptr<domain::Match>>& allMatches,
                          const std::vector<std::shared_ptr<domain::Group>>& groups) override
     {
         if (groups.size() % 2 != 0) {
             return std::unexpected("Groups count must be even for pairing");
         }
 
-        // Build per-group tables using only group-stage matches
+        // --- 1) Build tables from GROUP matches only ---
         std::map<std::string, wc::Table> standingsByGroup;
         for (const auto& g : groups) standingsByGroup[g->Id()] = wc::Table{};
 
         for (const auto& g : groups) {
             auto& table = standingsByGroup[g->Id()];
             for (const auto& t : g->Teams()) table.ensureTeam(t.Id, t.Name);
-
-            for (const auto& m : regularMatches) {
-                if (!m) continue;
-                if (m->Round() != rounds::GROUP) continue;
-
-                const auto& hid = m->Home().Id();
-                const auto& vid = m->Visitor().Id();
-                bool homeIn = false, visIn = false;
-
+        }
+        for (const auto& msp : allMatches) {
+            if (!msp) continue;
+            const auto& m = *msp;
+            if (m.Round() != rounds::GROUP) continue;
+            // Identify the group this match belongs to (both teams in same group)
+            for (const auto& g : groups) {
+                bool homeIn=false, visIn=false;
                 for (const auto& t : g->Teams()) {
-                    if (t.Id == hid) homeIn = true;
-                    if (t.Id == vid) visIn  = true;
+                    if (t.Id == m.Home().Id()) homeIn = true;
+                    if (t.Id == m.Visitor().Id()) visIn = true;
                     if (homeIn && visIn) break;
                 }
-                if (homeIn && visIn) table.addMatch(*m);
+                if (homeIn && visIn) {
+                    standingsByGroup[g->Id()].addMatch(m);
+                    break;
+                }
             }
         }
 
-        // Extract top-2 per group
-        struct Qualified { std::string id; std::string name; };
-        std::map<std::string, std::pair<Qualified, Qualified>> top2;
-
+        // --- 2) Get top-2 per group ---
+        struct Qualified { TeamRef first; TeamRef second; };
+        std::map<std::string, Qualified> top2;
         for (const auto& g : groups) {
             auto sorted = standingsByGroup[g->Id()].sorted();
             if (sorted.size() < 2) {
                 return std::unexpected("Not enough ranked teams in group " + g->Id());
             }
-            top2[g->Id()] = {
-                Qualified{sorted[0].teamId, sorted[0].teamName},
-                Qualified{sorted[1].teamId, sorted[1].teamName}
+            top2[g->Id()] = Qualified{
+                TeamRef{sorted[0].teamId, sorted[0].teamName},
+                TeamRef{sorted[1].teamId, sorted[1].teamName}
             };
         }
 
-        // Build R16 pairs by adjacent groups: (0,1), (2,3), ...
-        std::vector<domain::Match> ko;
+        // Helper: append a KO match to out vector
+        auto appendMatch = [&](std::vector<domain::Match>& out,
+                               const std::string& roundKey,
+                               const TeamRef& H, const TeamRef& V)
+        {
+            domain::Match m;
+            m.TournamentId() = tournament.Id();
+            m.Round()        = roundKey;
+            m.Home().Id()    = H.id; m.Home().Name()    = H.name;
+            m.Visitor().Id() = V.id; m.Visitor().Name() = V.name;
+            out.push_back(std::move(m));
+        };
+
+        std::vector<domain::Match> result;
+
+        // --- 3) R16 pairs in deterministic order: (A,B), (C,D), ... ---
+        std::vector<Pair> r16Pairs;
+        r16Pairs.reserve(16);
         for (size_t i = 0; i + 1 < groups.size(); i += 2) {
             const auto& gA = groups[i];
             const auto& gB = groups[i + 1];
@@ -179,33 +226,86 @@ public:
             const auto B1 = top2[gB->Id()].first;
             const auto B2 = top2[gB->Id()].second;
 
-            // A1 vs B2
-            {
-                domain::Match m;
-                m.TournamentId() = tournament.Id();
-                m.Round()        = rounds::R16;
-                m.Home().Id()    = A1.id; m.Home().Name()    = A1.name;
-                m.Visitor().Id() = B2.id; m.Visitor().Name() = B2.name;
-                ko.push_back(m);
-            }
-            // B1 vs A2
-            {
-                domain::Match m;
-                m.TournamentId() = tournament.Id();
-                m.Round()        = rounds::R16;
-                m.Home().Id()    = B1.id; m.Home().Name()    = B1.name;
-                m.Visitor().Id() = A2.id; m.Visitor().Name() = A2.name;
-                ko.push_back(m);
+            r16Pairs.push_back(Pair{ A1, B2 }); // A1 vs B2
+            r16Pairs.push_back(Pair{ B1, A2 }); // B1 vs A2
+        }
+
+        // Create R16 (only if not already persisted; MatchDelegate deduplica antes de insertar)
+        for (const auto& p : r16Pairs) {
+            // If this exact R16 already exists, delegate will skip; we still propose it here.
+            appendMatch(result, rounds::R16, p.home, p.visitor);
+        }
+
+        // --- 4) If R16 played, compose QF in same pairing order (0-1, 2-3, 4-5, 6-7) ---
+        std::vector<TeamRef> r16Winners;
+        r16Winners.reserve(r16Pairs.size());
+        bool r16Complete = true;
+        for (const auto& p : r16Pairs) {
+            auto mOpt = findMatch(allMatches, rounds::R16, p.home.id, p.visitor.id);
+            if (!mOpt.has_value()) { r16Complete = false; break; }
+            auto w = winnerOf(**mOpt);
+            if (!w.has_value()) { r16Complete = false; break; }
+            r16Winners.push_back(*w);
+        }
+        if (r16Complete && r16Winners.size() == 8) {
+            // QF: winners (0 vs 1), (2 vs 3), (4 vs 5), (6 vs 7)
+            for (int i = 0; i < 8; i += 2) {
+                appendMatch(result, rounds::QF, r16Winners[i], r16Winners[i+1]);
             }
         }
 
-        // Placeholders for next rounds
-        for (int i = 0; i < 4; ++i) { domain::Match m; m.TournamentId() = tournament.Id(); m.Round() = rounds::QF;    ko.push_back(m); }
-        for (int i = 0; i < 2; ++i) { domain::Match m; m.TournamentId() = tournament.Id(); m.Round() = rounds::SF;    ko.push_back(m); }
-        { domain::Match m; m.TournamentId() = tournament.Id(); m.Round() = rounds::FINAL; ko.push_back(m); }
+        // --- 5) If QF played, compose SF (0-1, 2-3) ---
+        std::vector<Pair> qfPairs;
+        if (r16Complete) {
+            for (int i = 0; i < 8; i += 2) {
+                qfPairs.push_back(Pair{ r16Winners[i], r16Winners[i+1] });
+            }
+        }
 
-        std::cout << "[WorldCupStrategy] Created " << ko.size()
-                  << " knockout matches (incl. placeholders)" << std::endl;
-        return ko;
+        std::vector<TeamRef> qfWinners;
+        bool qfComplete = false;
+        if (!qfPairs.empty()) {
+            qfWinners.reserve(4);
+            qfComplete = true;
+            for (const auto& p : qfPairs) {
+                auto mOpt = findMatch(allMatches, rounds::QF, p.home.id, p.visitor.id);
+                if (!mOpt.has_value()) { qfComplete = false; break; }
+                auto w = winnerOf(**mOpt);
+                if (!w.has_value()) { qfComplete = false; break; }
+                qfWinners.push_back(*w);
+            }
+            if (qfComplete && qfWinners.size() == 4) {
+                appendMatch(result, rounds::SF, qfWinners[0], qfWinners[1]);
+                appendMatch(result, rounds::SF, qfWinners[2], qfWinners[3]);
+            }
+        }
+
+        // --- 6) If SF played, compose FINAL ---
+        std::vector<Pair> sfPairs;
+        if (qfComplete) {
+            sfPairs.push_back(Pair{ qfWinners[0], qfWinners[1] });
+            sfPairs.push_back(Pair{ qfWinners[2], qfWinners[3] });
+        }
+
+        bool sfComplete = false;
+        if (!sfPairs.empty()) {
+            std::vector<TeamRef> sfWinners;
+            sfWinners.reserve(2);
+            sfComplete = true;
+            for (const auto& p : sfPairs) {
+                auto mOpt = findMatch(allMatches, rounds::SF, p.home.id, p.visitor.id);
+                if (!mOpt.has_value()) { sfComplete = false; break; }
+                auto w = winnerOf(**mOpt);
+                if (!w.has_value()) { sfComplete = false; break; }
+                sfWinners.push_back(*w);
+            }
+            if (sfComplete && sfWinners.size() == 2) {
+                appendMatch(result, rounds::FINAL, sfWinners[0], sfWinners[1]);
+            }
+        }
+
+        std::cout << "[WorldCupStrategy] KO proposals: "
+                  << result.size() << " (R16/QF/SF/FINAL as available)" << std::endl;
+        return result;
     }
 };
