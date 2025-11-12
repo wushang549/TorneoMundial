@@ -50,7 +50,6 @@ target_link_libraries(${PROJECT_NAME}
         libpqxx::pqxx
         unofficial::activemq-cpp::activemq-cpp
         tournament_common
-        Threads::Threads
 )
 
 # Copy runtime config next to the binary

@@ -20,7 +20,7 @@ int main() {
         auto scoreListener    = std::make_shared<ScoreUpdateListener>(connectionMgr, matchDelegate);
 
         std::thread t1([l = teamAddListener]() { l->Start("tournament.team-add"); });
-        std::thread t2([l = scoreListener  ]() { l->Start("match.score-recorded"); }); // <-- aquí
+        std::thread t2([l = scoreListener  ]() { l->Start("match.score-recorded"); });
 
         std::cout << "Listener threads started\n";
         t1.join();
