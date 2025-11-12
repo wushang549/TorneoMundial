@@ -1,33 +1,36 @@
-//MatchController.hpp
+// MatchController.hpp
 #pragma once
 #include <memory>
 #include <string>
 #include "crow.h"
 #include "controller/MatchController.hpp"
 #include "delegate/IMatchDelegate.hpp"
-// Forward declaration: the controller depends on the delegate interface,
+#include "cms/ConnectionManager.hpp"   // <-- add
+
 class MatchController {
-    std::shared_ptr<IMatchDelegate> matchDelegate;
+    std::shared_ptr<IMatchDelegate>   matchDelegate;
+    std::shared_ptr<ConnectionManager> connectionManager; // <-- add
 
 public:
     explicit MatchController(std::shared_ptr<IMatchDelegate> d)
         : matchDelegate(std::move(d)) {}
 
-    // GET /tournaments/{tId}/matches?showMatches=played|pending
+    // Minimal extra ctor to inject the ConnectionManager
+    MatchController(std::shared_ptr<IMatchDelegate> d,
+                    std::shared_ptr<ConnectionManager> cm)            // <-- add
+        : matchDelegate(std::move(d)),
+          connectionManager(std::move(cm)) {}
+
     crow::response ReadAll(const crow::request& request,
                            const std::string& tournamentId) const;
 
-    // GET /tournaments/{tId}/matches/{mId}
     crow::response ReadById(const std::string& tournamentId,
                             const std::string& matchId) const;
 
-    // PATCH /tournaments/{tId}/matches/{mId}
-    // Body: { "score": { "home": <int>, "visitor": <int> } }
     crow::response PatchScore(const crow::request& request,
                               const std::string& tournamentId,
                               const std::string& matchId) const;
-    // POST /tournaments/{tId}/matches
-    // Body: { "round": "...", "home":{id,name}, "visitor":{id,name} }
+
     crow::response Create(const crow::request& request,
-                          const std::string& tournamentId) const;   // <-- NEW
+                          const std::string& tournamentId) const;
 };

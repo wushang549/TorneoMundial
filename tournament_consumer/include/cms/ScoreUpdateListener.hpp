@@ -1,3 +1,4 @@
+//ScoreUpdateListener
 #ifndef LISTENER_SCOREUPDATE_LISTENER_HPP
 #define LISTENER_SCOREUPDATE_LISTENER_HPP
 
@@ -32,28 +33,24 @@ inline ScoreUpdateListener::~ScoreUpdateListener() {
 
 inline void ScoreUpdateListener::processMessage(const std::string& message) {
     std::cout << "[ScoreUpdateListener] Received message: " << message << std::endl;
-
     try {
         auto json = nlohmann::json::parse(message);
-
-        std::string tournamentId = json["tournamentId"];
-        std::string matchId      = json["matchId"];
-
-        std::cout << "[ScoreUpdateListener] Updating score in match "
-                  << matchId << " in tournament " << tournamentId << std::endl;
-
-        if (!matchDelegate) {
-            std::cout << "[ScoreUpdateListener] ERROR: matchDelegate is null!" << std::endl;
+        if (!json.contains("tournamentId") || !json.contains("matchId")) {
+            std::cout << "[ScoreUpdateListener] Missing fields\n";
             return;
         }
+        const std::string tournamentId = json.at("tournamentId").get<std::string>();
+        const std::string matchId      = json.at("matchId").get<std::string>();
 
-        ScoreUpdateEvent scoreUpdateEvent{tournamentId, matchId};
-        matchDelegate->ProcessScoreUpdate(scoreUpdateEvent);
-
+        if (!matchDelegate) {
+            std::cout << "[ScoreUpdateListener] ERROR: matchDelegate is null!\n";
+            return;
+        }
+        matchDelegate->ProcessScoreUpdate(ScoreUpdateEvent{tournamentId, matchId});
     } catch (const std::exception& e) {
-        std::cout << "[ScoreUpdateListener] ERROR processing message: "
-                  << e.what() << std::endl;
+        std::cout << "[ScoreUpdateListener] ERROR processing message: " << e.what() << std::endl;
     }
 }
+
 
 #endif // LISTENER_SCOREUPDATE_LISTENER_HPP

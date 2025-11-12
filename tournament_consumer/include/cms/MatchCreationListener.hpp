@@ -20,9 +20,9 @@ inline MatchCreationListener::~MatchCreationListener() {
 }
 
 inline void MatchCreationListener::processMessage(const std::string& message) {
-    std::cout<<("Match created: {}", message)<< std::endl;
-    // Este listener solo registra que se creó un match
-    // No necesita hacer nada más por ahora
+    std::cout << "Match created: " << message << std::endl;
+}
+
 }
 
 #endif
