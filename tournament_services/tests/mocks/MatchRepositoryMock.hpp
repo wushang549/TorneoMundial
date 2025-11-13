@@ -28,4 +28,10 @@ public:
                 Create,
                 (const domain::Match&),
                 (override));
+
+    // *** New: implement the idempotent insert ***
+    MOCK_METHOD(std::string,
+                CreateIfNotExists,
+                (const domain::Match&),
+                (override));
 };

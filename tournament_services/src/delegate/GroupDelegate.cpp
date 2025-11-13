@@ -3,6 +3,7 @@
 #include "../include/cms/QueueMessageProducer.hpp"
 #include <chrono>        // for timestamp
 #include <nlohmann/json.hpp>
+
 #include <algorithm>
 // ---------------- ctor ----------------
 GroupDelegate::GroupDelegate(
