@@ -8,16 +8,19 @@
 #include <vector>
 #include <nlohmann/json.hpp>
 
-// Include that declares IMatchDelegate (ajústalo si en tu repo es IMatchDelegate.hpp)
 #include "delegate/MatchDelegate.hpp"
 #include "domain/Match.hpp"
 
-class MatchDelegateMock : public IMatchDelegate {
+class MatchDelegateMock : public MatchDelegate {
 public:
+    // Base ctor expects two shared_ptrs; for tests we can pass nullptr.
+    MatchDelegateMock()
+        : MatchDelegate(nullptr, nullptr) {}
+
     MOCK_METHOD((std::vector<std::shared_ptr<domain::Match>>),
                 ReadAll,
                 (const std::string& tournamentId,
-                 const std::optional<std::string_view>& filter),   // <-- const ref
+                 const std::optional<std::string_view>& filter),
                 (override));
 
     MOCK_METHOD(std::shared_ptr<domain::Match>,
@@ -34,5 +37,10 @@ public:
     MOCK_METHOD((std::expected<std::string, std::string>),
                 Create,
                 (const std::string& tournamentId, const nlohmann::json& body),
+                (override));
+
+    MOCK_METHOD(void,
+                ProcessTeamAddition,
+                (const TeamAddEvent& evt),
                 (override));
 };

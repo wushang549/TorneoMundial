@@ -1,26 +1,30 @@
 project(tournament_tests)
 
 set(TEST_SOURCES
+        # Listener tests
+        listener/GroupAddTeamListenerTest.cpp
+
+        # Controller tests
         controller/TeamControllerTest.cpp
         controller/TournamentControllerTest.cpp
         controller/GroupControllerTest.cpp
         controller/MatchControllerTest.cpp
+
+        # Delegate tests
         delegate/TournamentDelegateTest.cpp
         delegate/TeamDelegateTest.cpp
         delegate/GroupDelegateTest.cpp
+        delegate/MatchDelegateTest.cpp
+
+        # Código real que usan los tests
         ../src/controller/GroupController.cpp
-        ../src/delegate/GroupDelegate.cpp
+        ../src/controller/MatchController.cpp
         ../src/controller/TeamController.cpp
         ../src/controller/TournamentController.cpp
-        ../include/controller/GroupController.hpp
-        ../include/controller/MatchController.hpp
-        ../src/delegate/TournamentDelegate.cpp
-        ../src/delegate/TeamDelegate.cpp
-        ../include/delegate/GroupDelegate.hpp
-        ../../tournament_common/src/persistence/repository/MatchRepository.cpp
-        ../../tournament_consumer/include/cms/MatchCreationListener.hpp
+        ../src/delegate/GroupDelegate.cpp
         ../src/delegate/MatchDelegate.cpp
-        ../src/controller/MatchController.cpp
+        ../src/delegate/TeamDelegate.cpp
+        ../src/delegate/TournamentDelegate.cpp
 )
 
 set(SOURCES ${TEST_SOURCES})
