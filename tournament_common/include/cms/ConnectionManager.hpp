@@ -46,7 +46,7 @@ public:
         std::cout << "[ConnectionManager] Connection started\n";
     }
 
-    // Optional explicit stop (DI container puede llamar esto en shutdown)
+    // Optional explicit stop (DI container may call this on shutdown)
     void shutdown() {
         std::lock_guard<std::mutex> lock(mtx_);
         try {
@@ -68,7 +68,8 @@ public:
     }
 
     // Create a fresh AUTO_ACK session for consumers/producers
-    [[nodiscard]] std::shared_ptr<cms::Session> CreateSession() const {
+    // NOTE: now virtual so it can be mocked.
+    [[nodiscard]] virtual std::shared_ptr<cms::Session> CreateSession() const {
         auto conn = connection_;
         if (!conn) {
             throw std::runtime_error("[ConnectionManager] CreateSession(): connection not initialized");
@@ -78,7 +79,8 @@ public:
             conn->createSession(cms::Session::AUTO_ACKNOWLEDGE));
     }
 
-    ~ConnectionManager() {
+    // Virtual destructor so deleting through base pointer is safe
+    virtual ~ConnectionManager() {
         // best-effort shutdown
         shutdown();
     }

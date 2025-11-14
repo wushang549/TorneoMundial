@@ -10,6 +10,7 @@
 #include "delegate/IMatchDelegate.hpp"    // <-- use the single source of truth
 #include "domain/Match.hpp"
 #include "event/TeamAddEvent.hpp"
+#include "event/ScoreUpdateEvent.hpp"
 
 
 class IMatchRepository;
@@ -43,4 +44,5 @@ public:
     std::expected<std::string, std::string>
     Create(const std::string& tournamentId, const nlohmann::json& body) override;
     virtual void ProcessTeamAddition(const TeamAddEvent& evt);
+    virtual void ProcessScoreUpdate(const ScoreUpdateEvent& evt);
 };

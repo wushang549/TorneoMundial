@@ -197,3 +197,8 @@ void MatchDelegate::ProcessTeamAddition(const TeamAddEvent& evt) {
     // Intentionally no-op in tournament_services.
     (void)evt;
 }
+void MatchDelegate::ProcessScoreUpdate(const ScoreUpdateEvent& evt) {
+    // In tournament_services we do not handle this event directly.
+    // It is consumed in tournament_consumer.
+    (void)evt;
+}

@@ -7,6 +7,8 @@
 #include <string_view>
 #include <vector>
 #include <nlohmann/json.hpp>
+#include "event/TeamAddEvent.hpp"
+#include "event/ScoreUpdateEvent.hpp"
 
 #include "delegate/MatchDelegate.hpp"
 #include "domain/Match.hpp"
@@ -43,4 +45,11 @@ public:
                 ProcessTeamAddition,
                 (const TeamAddEvent& evt),
                 (override));
+
+    // New method for ScoreUpdateListener tests
+    MOCK_METHOD(void,
+                  ProcessScoreUpdate,
+                  (const ScoreUpdateEvent& evt),
+                  (override));
+
 };

@@ -2,8 +2,12 @@
 #define LISTENER_MATCHCREATION_LISTENER_HPP
 
 #include "QueueMessageListener.hpp"
+#include <iostream>
+#include <string>
 
 class MatchCreationListener : public QueueMessageListener {
+protected:
+    // Now protected so a test subclass can expose it
     void processMessage(const std::string& message) override;
 
 public:
@@ -21,8 +25,6 @@ inline MatchCreationListener::~MatchCreationListener() {
 
 inline void MatchCreationListener::processMessage(const std::string& message) {
     std::cout << "Match created: " << message << std::endl;
-}
-
 }
 
 #endif
