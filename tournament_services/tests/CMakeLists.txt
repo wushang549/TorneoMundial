@@ -3,6 +3,8 @@ project(tournament_tests)
 set(TEST_SOURCES
         # Listener tests
         listener/GroupAddTeamListenerTest.cpp
+        listener/MatchCreationListenerTest.cpp
+        listener/QueueMessageListenerTest.cpp
 
         # Controller tests
         controller/TeamControllerTest.cpp
@@ -25,6 +27,10 @@ set(TEST_SOURCES
         ../src/delegate/MatchDelegate.cpp
         ../src/delegate/TeamDelegate.cpp
         ../src/delegate/TournamentDelegate.cpp
+        listener/MatchCreationListenerTest.cpp
+        listener/QueueMessageListenerTest.cpp
+        mocks/ConnectionManagerMock.hpp
+        listener/ScoreUpdateListenerTest.cpp
 )
 
 set(SOURCES ${TEST_SOURCES})

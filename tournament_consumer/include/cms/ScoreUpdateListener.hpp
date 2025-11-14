@@ -11,9 +11,9 @@
 class ScoreUpdateListener : public QueueMessageListener {
     std::shared_ptr<MatchDelegate> matchDelegate;
 
-    void processMessage(const std::string& message) override;
 
 public:
+    void processMessage(const std::string& message) override;
     ScoreUpdateListener(const std::shared_ptr<ConnectionManager>& connectionManager,
                         const std::shared_ptr<MatchDelegate>& matchDelegate);
     ~ScoreUpdateListener() override;
