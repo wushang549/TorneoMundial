@@ -29,6 +29,14 @@ static const std::regex UUID_RE("^[0-9a-fA-F]{8}-"
                                 "[0-9a-fA-F]{4}-"
                                 "[0-9a-fA-F]{12}$");
 
+// Optional guard so tests can disable publishing
+static bool is_score_publish_disabled() {
+    if (const char* env = std::getenv("DISABLE_SCORE_PUBLISH")) {
+        return env[0] != '\0';
+    }
+    return false;
+}
+
 // ----------- Simple one-shot publisher (safe and minimal) -----------
 static std::string brokerUrl() {
     if (const char* env = std::getenv("BROKER_URL")) {
@@ -39,6 +47,13 @@ static std::string brokerUrl() {
 
 static void publish_score_recorded(const std::string& tournamentId,
                                    const std::string& matchId) {
+    // When DISABLE_SCORE_PUBLISH is set, skip broker calls (useful for tests)
+    if (is_score_publish_disabled()) {
+        std::cerr << "[MatchController] score publish disabled by env (DISABLE_SCORE_PUBLISH)"
+                  << std::endl;
+        return;
+    }
+
     try {
         std::unique_ptr<cms::ConnectionFactory> factory(
             cms::ConnectionFactory::createCMSConnectionFactory(brokerUrl()));
@@ -221,4 +236,4 @@ crow::response MatchController::Create(const crow::request& request,
 REGISTER_ROUTE(MatchController, ReadAll,    "/tournaments/<string>/matches",            "GET"_method)
 REGISTER_ROUTE(MatchController, ReadById,   "/tournaments/<string>/matches/<string>",  "GET"_method)
 REGISTER_ROUTE(MatchController, PatchScore, "/tournaments/<string>/matches/<string>",  "PATCH"_method)
-REGISTER_ROUTE(MatchController, Create,     "/tournaments/<string>/matches",            "POST"_method)
+REGISTER_ROUTE(MatchController, Create,     "/tournaments/<string>/matches",           "POST"_method)

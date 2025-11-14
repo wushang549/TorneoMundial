@@ -33,6 +33,11 @@ add_executable(${PROJECT_NAME}
         ${SERVICES_SOURCES}
 )
 
+target_include_directories(${PROJECT_NAME} PRIVATE
+        ${CMAKE_SOURCE_DIR}/tournament_services/include
+        ${CMAKE_SOURCE_DIR}/tournament_consumer/include
+)
+
 target_link_libraries(${PROJECT_NAME} PUBLIC
         Crow::Crow
         asio::asio

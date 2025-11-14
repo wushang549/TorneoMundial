@@ -9,6 +9,8 @@
 #include <nlohmann/json.hpp>
 #include "delegate/IMatchDelegate.hpp"    // <-- use the single source of truth
 #include "domain/Match.hpp"
+#include "event/TeamAddEvent.hpp"
+
 
 class IMatchRepository;
 class ITournamentDelegate;
@@ -40,4 +42,5 @@ public:
     // NEW
     std::expected<std::string, std::string>
     Create(const std::string& tournamentId, const nlohmann::json& body) override;
+    virtual void ProcessTeamAddition(const TeamAddEvent& evt);
 };

@@ -10,6 +10,7 @@
 class GroupAddTeamListener : public QueueMessageListener {
     std::shared_ptr<MatchDelegate> matchDelegate;
 
+protected:
     void processMessage(const std::string& message) override;
 
 public:

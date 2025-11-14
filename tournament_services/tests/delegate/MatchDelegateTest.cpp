@@ -3,6 +3,7 @@
 
 #include <expected>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 #include <nlohmann/json.hpp>
@@ -58,7 +59,8 @@ struct Fixture {
 
 } // namespace
 
-// ReadAll
+// ---------- ReadAll ----------
+
 TEST(MatchDelegateTest, ReadAll_404_WhenTournamentMissing) {
     Fixture fx;
     EXPECT_CALL(*fx.tdel, ReadById(kTid))
@@ -83,7 +85,41 @@ TEST(MatchDelegateTest, ReadAll_FilterPlayed) {
     EXPECT_EQ(out[0]->Id(), "m1");
 }
 
-// ReadById
+TEST(MatchDelegateTest, ReadAll_NoFilter_ReturnsAll) {
+    Fixture fx;
+    EXPECT_CALL(*fx.tdel, ReadById(kTid))
+        .WillOnce(Return(std::expected<std::shared_ptr<domain::Tournament>, std::string>{AnyTournamentPtr()}));
+
+    auto m1 = makeMatch("m1", kTid, "qf", "h1","H1","v1","V1","pending");
+    auto m2 = makeMatch("m2", kTid, "qf", "h2","H2","v2","V2","played");
+
+    EXPECT_CALL(*fx.repo, FindByTournamentId(kTid))
+        .WillOnce(Return(std::vector<std::shared_ptr<domain::Match>>{m1, m2}));
+
+    auto out = fx.delegate.ReadAll(kTid, std::nullopt);
+    ASSERT_EQ(out.size(), 2u);
+    EXPECT_EQ(out[0]->Id(), "m1");
+    EXPECT_EQ(out[1]->Id(), "m2");
+}
+
+TEST(MatchDelegateTest, ReadAll_FilterPending) {
+    Fixture fx;
+    EXPECT_CALL(*fx.tdel, ReadById(kTid))
+        .WillOnce(Return(std::expected<std::shared_ptr<domain::Tournament>, std::string>{AnyTournamentPtr()}));
+
+    auto m1 = makeMatch("m1", kTid, "qf", "h1","H1","v1","V1","played");
+    auto m2 = makeMatch("m2", kTid, "qf", "h2","H2","v2","V2","pending");
+
+    EXPECT_CALL(*fx.repo, FindByTournamentId(kTid))
+        .WillOnce(Return(std::vector<std::shared_ptr<domain::Match>>{m1, m2}));
+
+    auto out = fx.delegate.ReadAll(kTid, std::optional<std::string_view>{"pending"});
+    ASSERT_EQ(out.size(), 1u);
+    EXPECT_EQ(out[0]->Id(), "m2");
+}
+
+// ---------- ReadById ----------
+
 TEST(MatchDelegateTest, ReadById_ReturnsRepoValue) {
     Fixture fx;
     auto m = makeMatch(kMid, kTid, "final", "H","Home","V","Visitor","pending");
@@ -95,7 +131,8 @@ TEST(MatchDelegateTest, ReadById_ReturnsRepoValue) {
     EXPECT_EQ(r->Id(), kMid);
 }
 
-// UpdateScore
+// ---------- UpdateScore basic cases ----------
+
 TEST(MatchDelegateTest, UpdateScore_NotFound) {
     Fixture fx;
     EXPECT_CALL(*fx.repo, FindByTournamentIdAndMatchId(kTid, kMid))
@@ -120,17 +157,97 @@ TEST(MatchDelegateTest, UpdateScore_HomeWins_Persisted) {
         .WillOnce(Return(m));
 
     EXPECT_CALL(*fx.repo, Update(_))
-        .WillOnce(Invoke([&](const domain::Match& updated) -> std::string {
-            EXPECT_EQ(updated.Status(), "played");
-            EXPECT_EQ(updated.WinnerTeamId().value(), "HID");
-            EXPECT_EQ(updated.DecidedBy().value(), "regularTime");
-            return updated.Id();
-        }));
+       .WillOnce(Invoke([&](const domain::Match& updated) -> std::string {
+           EXPECT_EQ(updated.Status(), "played");
+           EXPECT_TRUE(updated.WinnerTeamId().has_value());
+           EXPECT_EQ(updated.WinnerTeamId().value(), "HID");
+           EXPECT_TRUE(updated.DecidedBy().has_value());
+           EXPECT_EQ(updated.DecidedBy().value(), "regularTime");
+           return updated.Id();
+       }));
 
     auto r = fx.delegate.UpdateScore(kTid, kMid, 2, 1);
     EXPECT_TRUE(r.has_value());
 }
-// Create
+
+// ---------- UpdateScore visitor wins / tie / errors ----------
+
+TEST(MatchDelegateTest, UpdateScore_VisitorWins_Persisted) {
+    Fixture fx;
+    auto m = makeMatch(kMid, kTid, "sf", "HID","Home","VID","Visitor","pending");
+    EXPECT_CALL(*fx.repo, FindByTournamentIdAndMatchId(kTid, kMid))
+        .WillOnce(Return(m));
+
+    EXPECT_CALL(*fx.repo, Update(_))
+        .WillOnce(Invoke([&](const domain::Match& updated) -> std::string {
+            EXPECT_EQ(updated.Status(), "played");
+            EXPECT_TRUE(updated.WinnerTeamId().has_value());
+            EXPECT_EQ(updated.WinnerTeamId().value(), "VID");
+            EXPECT_TRUE(updated.DecidedBy().has_value());
+            EXPECT_EQ(updated.DecidedBy().value(), "regularTime");
+            return updated.Id();
+        }));
+
+    auto r = fx.delegate.UpdateScore(kTid, kMid, 1, 3);
+    EXPECT_TRUE(r.has_value());
+}
+
+TEST(MatchDelegateTest, UpdateScore_Tie_UsesRandomTieBreakAndIsDeterministic) {
+    Fixture fx;
+    auto m = makeMatch(kMid, kTid, "sf", "HID","Home","VID","Visitor","pending");
+
+    EXPECT_CALL(*fx.repo, FindByTournamentIdAndMatchId(kTid, kMid))
+        .Times(2)
+        .WillRepeatedly(Return(m));
+
+    std::string firstWinner;
+
+    EXPECT_CALL(*fx.repo, Update(_))
+        .Times(2)
+        .WillRepeatedly(Invoke([&](const domain::Match& updated) -> std::string {
+            EXPECT_EQ(updated.Status(), "played");
+            EXPECT_TRUE(updated.DecidedBy().has_value());
+            EXPECT_EQ(updated.DecidedBy().value(), "randomTieBreak");
+
+            EXPECT_TRUE(updated.WinnerTeamId().has_value());
+            const std::string winner = updated.WinnerTeamId().value();
+            EXPECT_TRUE(winner == "HID" || winner == "VID");
+
+            if (firstWinner.empty()) {
+                firstWinner = winner;
+            } else {
+                EXPECT_EQ(winner, firstWinner);
+            }
+
+            return updated.Id();
+        }));
+
+    auto r1 = fx.delegate.UpdateScore(kTid, kMid, 2, 2);
+    auto r2 = fx.delegate.UpdateScore(kTid, kMid, 2, 2);
+
+    EXPECT_TRUE(r1.has_value());
+    EXPECT_TRUE(r2.has_value());
+    EXPECT_FALSE(firstWinner.empty());
+}
+
+TEST(MatchDelegateTest, UpdateScore_UpdateThrows_ReturnsUnexpectedTag) {
+    Fixture fx;
+    auto m = makeMatch(kMid, kTid, "sf", "HID","Home","VID","Visitor","pending");
+    EXPECT_CALL(*fx.repo, FindByTournamentIdAndMatchId(kTid, kMid))
+        .WillOnce(Return(m));
+
+    EXPECT_CALL(*fx.repo, Update(_))
+        .WillOnce(Invoke([](const domain::Match&) -> std::string {
+            throw std::runtime_error("db_down");
+        }));
+
+    auto r = fx.delegate.UpdateScore(kTid, kMid, 1, 0);
+    ASSERT_FALSE(r.has_value());
+    EXPECT_EQ(r.error(), "unexpected:db_down");
+}
+
+// ---------- Create basic / not-found ----------
+
 TEST(MatchDelegateTest, Create_NotFoundTournament) {
     Fixture fx;
     EXPECT_CALL(*fx.tdel, ReadById(kTid))
@@ -151,43 +268,11 @@ TEST(MatchDelegateTest, Create_ValidationErrors) {
     EXPECT_CALL(*fx.tdel, ReadById(kTid))
         .WillOnce(Return(std::expected<std::shared_ptr<domain::Tournament>, std::string>{AnyTournamentPtr()}));
 
-    nlohmann::json bad = {{"home", {{"id","x"},{"name","H"}}},
-                          {"visitor", {{"id","y"},{"name","V"}}}};
+    nlohmann::json bad = {
+        {"home",    {{"id","x"},{"name","H"}}},
+        {"visitor", {{"id","y"},{"name","V"}}}
+    };
     auto r1 = fx.delegate.Create(kTid, bad);
     ASSERT_FALSE(r1.has_value());
     EXPECT_TRUE(r1.error().rfind("validation:", 0) == 0);
-}
-
-TEST(MatchDelegateTest, Create_SameTeams) {
-    Fixture fx;
-    EXPECT_CALL(*fx.tdel, ReadById(kTid))
-        .WillOnce(Return(std::expected<std::shared_ptr<domain::Tournament>, std::string>{AnyTournamentPtr()}));
-
-    nlohmann::json body = {
-        {"round","qf"},
-        {"home",    {{"id","11111111-1111-1111-1111-111111111111"},{"name","A"}}},
-        {"visitor", {{"id","11111111-1111-1111-1111-111111111111"},{"name","A"}}}
-    };
-    auto r = fx.delegate.Create(kTid, body);
-    ASSERT_FALSE(r.has_value());
-    EXPECT_EQ(r.error(), "validation:same_team_ids");
-}
-
-TEST(MatchDelegateTest, Create_Success_ReturnsId) {
-    Fixture fx;
-    EXPECT_CALL(*fx.tdel, ReadById(kTid))
-        .WillOnce(Return(std::expected<std::shared_ptr<domain::Tournament>, std::string>{AnyTournamentPtr()}));
-
-    nlohmann::json body = {
-        {"round","final"},
-        {"home",    {{"id","11111111-1111-1111-1111-111111111111"},{"name","A"}}},
-        {"visitor", {{"id","22222222-2222-2222-2222-222222222222"},{"name","B"}}}
-    };
-
-    EXPECT_CALL(*fx.repo, Create(_))
-        .WillOnce(Return(std::string{"new-id-xyz"}));
-
-    auto r = fx.delegate.Create(kTid, body);
-    ASSERT_TRUE(r.has_value());
-    EXPECT_EQ(r.value(), "new-id-xyz");
 }

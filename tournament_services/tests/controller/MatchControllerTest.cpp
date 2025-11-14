@@ -1,10 +1,12 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-
+#include <cstdlib>
 #include <expected>
 #include <memory>
 #include <string>
 #include <vector>
+#include <optional>
+#include <stdexcept>
 
 #include "crow.h"
 #include <nlohmann/json.hpp>
@@ -42,15 +44,22 @@ static std::shared_ptr<domain::Match> makeMatch(
     return m;
 }
 
-struct Fixture {
+    struct Fixture {
+    Fixture() {
+        // Disable score publish for all MatchController tests
+        ::setenv("DISABLE_SCORE_PUBLISH", "1", 1);
+    }
+
     std::shared_ptr<StrictMock<MatchDelegateMock>> mock =
         std::make_shared<StrictMock<MatchDelegateMock>>();
     MatchController controller{mock};
 };
 
+
 } // namespace
 
-// ReadAll
+// ---------- ReadAll ----------
+
 TEST(MatchControllerTest, ReadAll_InvalidTournamentId_400) {
     Fixture fx;
     crow::request req;
@@ -75,10 +84,58 @@ TEST(MatchControllerTest, ReadAll_Success_200_Array) {
     EXPECT_EQ(j.size(), 2);
     EXPECT_EQ(j[0]["round"], "qf");
     EXPECT_EQ(j[1]["status"], "played");
+
+    auto ct = res.get_header_value("content-type");
+    EXPECT_EQ(ct, "application/json");
 }
 
+TEST(MatchControllerTest, ReadAll_DelegateNotFound_404) {
+    Fixture fx;
+    crow::request req;
 
-// ReadById
+    EXPECT_CALL(*fx.mock, ReadAll(kValidTid, _))
+        .WillOnce(Invoke([](const std::string&,
+                            std::optional<std::string_view>) -> std::vector<std::shared_ptr<domain::Match>> {
+            throw std::runtime_error("not_found");
+        }));
+
+    auto res = fx.controller.ReadAll(req, kValidTid);
+    EXPECT_EQ(res.code, crow::NOT_FOUND);
+    EXPECT_EQ(res.body, "tournament not found");
+}
+
+TEST(MatchControllerTest, ReadAll_DelegateRuntimeOther_500) {
+    Fixture fx;
+    crow::request req;
+
+    EXPECT_CALL(*fx.mock, ReadAll(kValidTid, _))
+        .WillOnce(Invoke([](const std::string&,
+                            std::optional<std::string_view>) -> std::vector<std::shared_ptr<domain::Match>> {
+            throw std::runtime_error("db_error");
+        }));
+
+    auto res = fx.controller.ReadAll(req, kValidTid);
+    EXPECT_EQ(res.code, crow::INTERNAL_SERVER_ERROR);
+    EXPECT_EQ(res.body, "read matches failed");
+}
+
+TEST(MatchControllerTest, ReadAll_DelegateUnknownException_500) {
+    Fixture fx;
+    crow::request req;
+
+    EXPECT_CALL(*fx.mock, ReadAll(kValidTid, _))
+        .WillOnce(Invoke([](const std::string&,
+                            std::optional<std::string_view>) -> std::vector<std::shared_ptr<domain::Match>> {
+            throw std::logic_error("logic");
+        }));
+
+    auto res = fx.controller.ReadAll(req, kValidTid);
+    EXPECT_EQ(res.code, crow::INTERNAL_SERVER_ERROR);
+    EXPECT_EQ(res.body, "read matches failed");
+}
+
+// ---------- ReadById ----------
+
 TEST(MatchControllerTest, ReadById_BadIds_400) {
     Fixture fx;
     auto res = fx.controller.ReadById(kInvalidId, kInvalidId);
@@ -111,9 +168,27 @@ TEST(MatchControllerTest, ReadById_Success_200) {
     EXPECT_EQ(j["id"], kValidMid);
     EXPECT_EQ(j["status"], "played");
     EXPECT_EQ(j["winnerTeamId"], "H");
+
+    auto ct = res.get_header_value("content-type");
+    EXPECT_EQ(ct, "application/json");
 }
 
-// PatchScore
+TEST(MatchControllerTest, ReadById_DelegateThrows_500) {
+    Fixture fx;
+
+    EXPECT_CALL(*fx.mock, ReadById(kValidTid, kValidMid))
+        .WillOnce(Invoke([](const std::string&, const std::string&)
+                         -> std::shared_ptr<domain::Match> {
+            throw std::runtime_error("boom");
+        }));
+
+    auto res = fx.controller.ReadById(kValidTid, kValidMid);
+    EXPECT_EQ(res.code, crow::INTERNAL_SERVER_ERROR);
+    EXPECT_EQ(res.body, "read match failed");
+}
+
+// ---------- PatchScore ----------
+
 TEST(MatchControllerTest, PatchScore_BadIds_400) {
     Fixture fx;
     crow::request req;
@@ -136,6 +211,26 @@ TEST(MatchControllerTest, PatchScore_MissingScore_400) {
     req.body = R"({"nope":1})";
     auto res = fx.controller.PatchScore(req, kValidTid, kValidMid);
     EXPECT_EQ(res.code, crow::BAD_REQUEST);
+    EXPECT_EQ(res.body, "Missing 'score' object");
+}
+
+TEST(MatchControllerTest, PatchScore_ScoreNotObject_400) {
+    Fixture fx;
+    crow::request req;
+    req.body = R"({"score":123})";
+    auto res = fx.controller.PatchScore(req, kValidTid, kValidMid);
+    EXPECT_EQ(res.code, crow::BAD_REQUEST);
+    EXPECT_EQ(res.body, "Missing 'score' object");
+}
+
+TEST(MatchControllerTest, PatchScore_InvalidScorePayload_400) {
+    Fixture fx;
+    crow::request req;
+    // home is not integer
+    req.body = R"({"score":{"home":"x","visitor":1}})";
+    auto res = fx.controller.PatchScore(req, kValidTid, kValidMid);
+    EXPECT_EQ(res.code, crow::BAD_REQUEST);
+    EXPECT_EQ(res.body, "Invalid score payload");
 }
 
 TEST(MatchControllerTest, PatchScore_DelegateNotFound_404) {
@@ -162,19 +257,40 @@ TEST(MatchControllerTest, PatchScore_Validation_422) {
     EXPECT_EQ(res.code, 422);
 }
 
+TEST(MatchControllerTest, PatchScore_UnexpectedError_500) {
+    Fixture fx;
+    crow::request req;
+    req.body = R"({"score":{"home":2,"visitor":1}})";
+
+    EXPECT_CALL(*fx.mock, UpdateScore(kValidTid, kValidMid, 2, 1))
+        .WillOnce(Return(std::unexpected(std::string("db_error"))));
+
+    auto res = fx.controller.PatchScore(req, kValidTid, kValidMid);
+    EXPECT_EQ(res.code, crow::INTERNAL_SERVER_ERROR);
+    EXPECT_EQ(res.body, "update score failed");
+}
+
 TEST(MatchControllerTest, PatchScore_Success_204) {
     Fixture fx;
     crow::request req;
     req.body = R"({"score":{"home":2,"visitor":1}})";
 
     EXPECT_CALL(*fx.mock, UpdateScore(kValidTid, kValidMid, 2, 1))
-        .WillOnce(Return(std::expected<void, std::string>{}));
+        .WillOnce(Invoke([](const std::string&,
+                            const std::string&,
+                            int /*home*/,
+                            int /*visitor*/) {
+            // Success: std::expected<void, std::string> in value state
+            return std::expected<void, std::string>{std::in_place};
+        }));
 
     auto res = fx.controller.PatchScore(req, kValidTid, kValidMid);
     EXPECT_EQ(res.code, crow::NO_CONTENT);
 }
 
-// Create
+
+// ---------- Create ----------
+
 TEST(MatchControllerTest, Create_BadTid_400) {
     Fixture fx;
     crow::request req;
@@ -215,6 +331,43 @@ TEST(MatchControllerTest, Create_NotFound_404) {
     EXPECT_EQ(res.code, crow::NOT_FOUND);
 }
 
+TEST(MatchControllerTest, Create_UnexpectedError_500) {
+    Fixture fx;
+    crow::request req;
+    req.body = R"({
+      "round":"qf",
+      "home":    {"id":"h","name":"H"},
+      "visitor": {"id":"v","name":"V"}
+    })";
+
+    EXPECT_CALL(*fx.mock, Create(kValidTid, _))
+        .WillOnce(Return(std::unexpected(std::string("db_error"))));
+
+    auto res = fx.controller.Create(req, kValidTid);
+    EXPECT_EQ(res.code, crow::INTERNAL_SERVER_ERROR);
+    EXPECT_EQ(res.body, "create match failed");
+}
+
+TEST(MatchControllerTest, Create_DelegateThrows_500) {
+    Fixture fx;
+    crow::request req;
+    req.body = R"({
+      "round":"qf",
+      "home":    {"id":"h","name":"H"},
+      "visitor": {"id":"v","name":"V"}
+    })";
+
+    EXPECT_CALL(*fx.mock, Create(kValidTid, _))
+        .WillOnce(Invoke([](const std::string&,
+                            const nlohmann::json&) -> std::expected<std::string, std::string> {
+            throw std::runtime_error("boom");
+        }));
+
+    auto res = fx.controller.Create(req, kValidTid);
+    EXPECT_EQ(res.code, crow::INTERNAL_SERVER_ERROR);
+    EXPECT_EQ(res.body, "create match failed");
+}
+
 TEST(MatchControllerTest, Create_Success_201) {
     Fixture fx;
     crow::request req;
@@ -232,4 +385,11 @@ TEST(MatchControllerTest, Create_Success_201) {
 
     auto j = nlohmann::json::parse(res.body);
     EXPECT_EQ(j["id"], "new-id-123");
+
+    auto ct = res.get_header_value("content-type");
+    EXPECT_EQ(ct, "application/json");
+
+    auto location = res.get_header_value("Location");
+    EXPECT_EQ(location,
+              std::string("/tournaments/") + kValidTid + "/matches/new-id-123");
 }
