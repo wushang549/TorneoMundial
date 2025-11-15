@@ -17,6 +17,7 @@ set(TEST_SOURCES
         delegate/TeamDelegateTest.cpp
         delegate/GroupDelegateTest.cpp
         delegate/MatchDelegateTest.cpp
+        delegate/MatchDelegateConsumerTest.cpp
 
         # Código real que usan los tests
         ../src/controller/GroupController.cpp
@@ -31,6 +32,7 @@ set(TEST_SOURCES
         listener/QueueMessageListenerTest.cpp
         mocks/ConnectionManagerMock.hpp
         listener/ScoreUpdateListenerTest.cpp
+        delegate/MatchDelegateConsumerTest.cpp
 )
 
 set(SOURCES ${TEST_SOURCES})
