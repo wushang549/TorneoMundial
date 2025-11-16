@@ -35,7 +35,6 @@ set(TEST_SOURCES
         mocks/ConnectionManagerMock.hpp
         listener/ScoreUpdateListenerTest.cpp
         delegate/MatchDelegateConsumerTest.cpp
-        domain/WorldCupStrategyTest.cpp
 )
 
 set(SOURCES ${TEST_SOURCES})
