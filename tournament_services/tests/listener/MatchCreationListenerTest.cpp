@@ -8,7 +8,6 @@
 #include <iostream>
 #include <memory>
 
-// Make private/protected members public in this TU for testing
 #define private public
 #define protected public
 #include "cms/MatchCreationListener.hpp"

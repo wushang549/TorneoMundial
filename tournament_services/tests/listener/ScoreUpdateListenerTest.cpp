@@ -4,7 +4,6 @@
 #include <memory>
 #include <string>
 
-// Hacer privados/protegidos públicos solo en este TU de prueba
 #define private public
 #define protected public
 #include "cms/ScoreUpdateListener.hpp"

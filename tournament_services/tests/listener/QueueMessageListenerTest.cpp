@@ -11,9 +11,6 @@
 
 using ::testing::NiceMock;
 using ::testing::Return;
-
-// Simple mock for ConnectionManager
-// Test double for QueueMessageListener so we can implement processMessage
 class TestQueueMessageListener : public QueueMessageListener {
 public:
     explicit TestQueueMessageListener(const std::shared_ptr<ConnectionManager>& cm)
