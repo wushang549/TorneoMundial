@@ -24,10 +24,13 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         tournament_common
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${HYPODERMIC_INCLUDE_DIRS})
+target_include_directories(${PROJECT_NAME} PRIVATE
+        ${HYPODERMIC_INCLUDE_DIRS}
+
+)
 
 configure_file(
-        ${CMAKE_SOURCE_DIR}/${PROJECT_NAME}/configuration.json   # source file
-        ${CMAKE_BINARY_DIR}/${PROJECT_NAME}/configuration.json  # destination
+        ${CMAKE_SOURCE_DIR}/${PROJECT_NAME}/configuration.json
+        ${CMAKE_BINARY_DIR}/${PROJECT_NAME}/configuration.json
         COPYONLY
 )

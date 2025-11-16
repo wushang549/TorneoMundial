@@ -180,3 +180,56 @@ TEST(TournamentDelegateTest, ReadById_ReturnsNullptrWhenMissing) {
     ASSERT_TRUE(r.has_value());
     EXPECT_EQ(r.value(), nullptr);
 }
+// CreateTournament: forwards the incoming tournament to repository
+TEST(TournamentDelegateTest, CreateTournament_PassesTournamentToRepository) {
+    auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
+    TournamentDelegate sut{repo};
+
+    auto input = std::make_shared<domain::Tournament>(
+        "Liga",
+        domain::TournamentFormat{1,4,domain::TournamentType::NFL}
+    );
+
+    EXPECT_CALL(*repo, Create(_))
+        .WillOnce(Invoke([&](const domain::Tournament& t) {
+            EXPECT_EQ(t.Name(), "Liga");
+            return "T123"s;
+        }));
+
+    auto res = sut.CreateTournament(input);
+    ASSERT_TRUE(res.has_value());
+    EXPECT_EQ(res.value(), "T123");
+}
+
+// UpdateTournament: ReadById throws -> unexpected error, Update not called
+TEST(TournamentDelegateTest, UpdateTournament_ReadByIdThrows_ReturnsUnexpected) {
+    auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
+
+    EXPECT_CALL(*repo, ReadById("UERR"))
+        .WillOnce(Throw(std::runtime_error("read_fail")));
+    EXPECT_CALL(*repo, Update(_)).Times(0);
+
+    TournamentDelegate sut{repo};
+    auto result = sut.UpdateTournament(
+        "UERR",
+        domain::Tournament{"Liga", domain::TournamentFormat{1,4,domain::TournamentType::NFL}}
+    );
+
+    ASSERT_FALSE(result.has_value());
+    EXPECT_THAT(result.error(), HasSubstr("read_fail"));
+}
+
+// DeleteTournament: ReadById throws -> unexpected error, Delete not called
+TEST(TournamentDelegateTest, DeleteTournament_ReadByIdThrows_ReturnsUnexpected) {
+    auto repo = std::make_shared<StrictMock<MockTournamentRepository>>();
+
+    EXPECT_CALL(*repo, ReadById("DERR"))
+        .WillOnce(Throw(std::runtime_error("read_fail")));
+    EXPECT_CALL(*repo, Delete(_)).Times(0);
+
+    TournamentDelegate sut{repo};
+    auto result = sut.DeleteTournament("DERR");
+
+    ASSERT_FALSE(result.has_value());
+    EXPECT_THAT(result.error(), HasSubstr("read_fail"));
+}

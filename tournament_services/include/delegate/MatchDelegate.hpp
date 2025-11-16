@@ -1,22 +1,48 @@
-#ifndef A251C297_DF53_4BEB_93D6_DB45EAC8C825
-#define A251C297_DF53_4BEB_93D6_DB45EAC8C825
+// MatchDelegate.hpp
+#pragma once
+#include <memory>
+#include <string>
+#include <string_view>
+#include <vector>
+#include <optional>
+#include <expected>
+#include <nlohmann/json.hpp>
+#include "delegate/IMatchDelegate.hpp"    // <-- use the single source of truth
+#include "domain/Match.hpp"
+#include "event/TeamAddEvent.hpp"
+#include "event/ScoreUpdateEvent.hpp"
 
-class MatchDelegate
-{
-private:
-    /* data */
+
+class IMatchRepository;
+class ITournamentDelegate;
+
+class MatchDelegate : public IMatchDelegate {
+    std::shared_ptr<IMatchRepository> matchRepository;
+    std::shared_ptr<ITournamentDelegate> tournamentDelegate;
+
+    static std::string pickDeterministicWinner(const std::string& tournamentId,
+                                               const std::string& matchId,
+                                               const std::string& homeTeamId,
+                                               const std::string& visitorTeamId);
 public:
-    MatchDelegate(/* args */);
-    ~MatchDelegate();
+    MatchDelegate(std::shared_ptr<IMatchRepository> matchRepo,
+                  std::shared_ptr<ITournamentDelegate> tournamentDel);
+
+    std::vector<std::shared_ptr<domain::Match>>
+    ReadAll(const std::string& tournamentId,
+            const std::optional<std::string_view>& showFilter) override;
+
+    std::shared_ptr<domain::Match>
+    ReadById(const std::string& tournamentId, const std::string& matchId) override;
+
+    std::expected<void, std::string>
+    UpdateScore(const std::string& tournamentId,
+                const std::string& matchId,
+                int homeScore, int visitorScore) override;
+
+    // NEW
+    std::expected<std::string, std::string>
+    Create(const std::string& tournamentId, const nlohmann::json& body) override;
+    virtual void ProcessTeamAddition(const TeamAddEvent& evt);
+    virtual void ProcessScoreUpdate(const ScoreUpdateEvent& evt);
 };
-
-MatchDelegate::MatchDelegate(/* args */)
-{
-}
-
-MatchDelegate::~MatchDelegate()
-{
-}
-
-
-#endif /* A251C297_DF53_4BEB_93D6_DB45EAC8C825 */

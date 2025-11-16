@@ -10,21 +10,25 @@
 
 #include "delegate/IGroupDelegate.hpp"
 
-// OJO: usa el prefijo real de tus headers:
 #include "persistence/repository/TournamentRepository.hpp"
 #include "persistence/repository/IGroupRepository.hpp"
 #include "persistence/repository/GroupRepository.hpp"
 #include "persistence/repository/TeamRepository.hpp"
 
+// Use the interface, not the concrete producer
+#include "cms/IQueueMessageProducer.hpp"
+
 class GroupDelegate : public IGroupDelegate {
-    std::shared_ptr<TournamentRepository> tournamentRepository;
-    std::shared_ptr<IGroupRepository>     groupRepository;
-    std::shared_ptr<TeamRepository>       teamRepository;
+    std::shared_ptr<TournamentRepository>      tournamentRepository;
+    std::shared_ptr<IGroupRepository>          groupRepository;
+    std::shared_ptr<TeamRepository>            teamRepository;
+    std::shared_ptr<IQueueMessageProducer>     messageProducer; // interface-based
 
 public:
     GroupDelegate(const std::shared_ptr<TournamentRepository>& tournamentRepository,
                   const std::shared_ptr<IGroupRepository>& groupRepository,
-                  const std::shared_ptr<TeamRepository>& teamRepository);
+                  const std::shared_ptr<TeamRepository>& teamRepository,
+                  const std::shared_ptr<IQueueMessageProducer>& messageProducer);
 
     // IGroupDelegate
     std::expected<std::string, std::string>
@@ -46,7 +50,6 @@ public:
     UpdateTeams(std::string_view tournamentId, std::string_view groupId,
                 const std::vector<domain::Team>& teams) override;
 
-    // Implementación que te faltaba
     std::expected<void, std::string>
     AddTeamToGroup(std::string_view tournamentId,
                    std::string_view groupId,

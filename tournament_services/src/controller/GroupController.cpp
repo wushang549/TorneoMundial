@@ -112,8 +112,8 @@ parse_team_array(const json& body) {
     return teams;
 }
 
-// Helper to publish an event when a team is added. For now make it a no-op
-void publish_team_added_event(const std::string& /*tournamentId*/, const std::string& /*groupId*/, const std::string& /*teamId*/) {}
+// Helper to publis an event when a team is added. For now make it a no-op
+
 
 } // namespace
 
@@ -247,7 +247,6 @@ crow::response GroupController::AddTeamToGroup(const crow::request& req,
 
     crow::response res{crow::CREATED, json{{"message", "Team added successfully"}}.dump()};
     res.set_header("content-type", std::string(kJsonContentType));
-    publish_team_added_event(tournamentId, groupId, teamId.value());
     return res;
 }
 
@@ -264,8 +263,6 @@ crow::response GroupController::AddTeamToGroupById(const std::string& tournament
         }
         return json_error(crow::BAD_REQUEST, result.error());
     }
-
-    publish_team_added_event(tournamentId, groupId, teamId);
     return crow::response{crow::NO_CONTENT};
 }
 
