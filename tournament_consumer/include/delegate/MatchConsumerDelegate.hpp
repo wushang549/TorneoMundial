@@ -1,4 +1,4 @@
-//MatchDelegate.hpp (consumer)
+//MatchConsumerDelegate.hpp (consumer)
 #pragma once
 #include <memory>
 #include <vector>
@@ -18,7 +18,7 @@
 #include "domain/Match.hpp"
 #include "domain/WorldCupStrategy.hpp"
 
-class MatchDelegate {
+class MatchConsumerDelegate {
     std::shared_ptr<IMatchRepository>     matchRepository;
     std::shared_ptr<IGroupRepository>     groupRepository;
     std::shared_ptr<TournamentRepository> tournamentRepository;
@@ -33,7 +33,7 @@ class MatchDelegate {
     }
 
 public:
-    MatchDelegate(const std::shared_ptr<IMatchRepository>& matchRepository,
+    MatchConsumerDelegate(const std::shared_ptr<IMatchRepository>& matchRepository,
                   const std::shared_ptr<IGroupRepository>& groupRepository,
                   const std::shared_ptr<TournamentRepository>& tournamentRepository)
         : matchRepository(matchRepository),

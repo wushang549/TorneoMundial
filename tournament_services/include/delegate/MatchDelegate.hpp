@@ -1,4 +1,4 @@
-// MatchDelegate.hpp
+// MatchConsumerDelegate.hpp
 #pragma once
 #include <memory>
 #include <string>
