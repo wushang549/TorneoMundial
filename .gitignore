@@ -6,3 +6,23 @@
 /Testing/
 /CMakePresets.json
 /out/
+# Build directories
+build/
+cmake-build-*/
+out/
+
+# vcpkg installed files
+vcpkg_installed/
+**/vcpkg_installed/
+
+# Binary files
+*.a
+*.so
+*.dll
+*.dylib
+*.exe
+
+# CMake cache
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
