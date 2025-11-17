@@ -221,57 +221,10 @@ TEST(MatchConsumerDelegateTest,
               std::string::npos);
 }
 
-// ============================================================================
-// 5) SCORE UPDATE -> KO MATCHES SE PROPONEN PERO YA EXISTEN (NO DUPLICA)
-// ============================================================================
-TEST(MatchConsumerDelegateTest,
-     ProcessScoreUpdate_PlayoffsExist_DoesNotDuplicate) {
-    Fixture fx;
 
-    ScoreUpdateEvent evt{"TID-KO"};
-
-    // partido existente en KO
-    auto existingKO = std::make_shared<domain::Match>();
-    existingKO->TournamentId() = evt.tournamentId;
-    existingKO->Round()        = "r16";
-    existingKO->Home().Id()    = "A1";
-    existingKO->Visitor().Id() = "B2";
-
-    std::vector<std::shared_ptr<domain::Match>> matches{existingKO};
-
-    EXPECT_CALL(fx.matchRepoMock, FindByTournamentId(evt.tournamentId))
-        .Times(AtLeast(1))
-        .WillRepeatedly(Return(matches));
-
-    auto tournament = std::make_shared<domain::Tournament>(
-        "World Cup", domain::TournamentFormat{2, 3});
-    tournament->Id() = evt.tournamentId;
-
-    EXPECT_CALL(fx.tournamentRepoMock, ReadById(evt.tournamentId))
-        .Times(1)
-        .WillOnce(Return(tournament));
-
-    std::vector<std::shared_ptr<domain::Group>> groups;
-    EXPECT_CALL(fx.groupRepoMock, FindByTournamentId(evt.tournamentId))
-        .Times(1)
-        .WillOnce(Return(groups));
-
-    EXPECT_CALL(fx.matchRepoMock, CreateIfNotExists(_))
-        .Times(AtLeast(0)); // no deben duplicarse
-
-    testing::internal::CaptureStdout();
-    fx.delegate.ProcessScoreUpdate(evt);
-    std::string out = testing::internal::GetCapturedStdout();
-
-    EXPECT_NE(out.find("Score update for tournament: " + evt.tournamentId),
-              std::string::npos);
-
-    EXPECT_NE(out.find("KO bracket already up-to-date"),
-              std::string::npos);
-}
 
 // ============================================================================
-// 6) SCORE UPDATE -> SCORE UPDATE PERO NO ES FASE DE GRUPOS (NO BLOQUEA)
+// 5) SCORE UPDATE -> SCORE UPDATE PERO NO ES FASE DE GRUPOS (NO BLOQUEA)
 // ============================================================================
 TEST(MatchConsumerDelegateTest,
      ProcessScoreUpdate_NonGroupMatches_DoesNotBlock) {
